@@ -62,7 +62,12 @@ def ls(args):
 def lst(args):
     tasks = wrapper.get_tasks(list_name=args.list_name)
     for i, task in enumerate(tasks):
-        print(f"[{i}]\t{task.title}")
+        line = f"[{i}]\t{task.title}"
+        if task.importance == "high":
+            line += " !"
+        if task.due_datetime is not None:
+            line += f" (due: {task.due_datetime.strftime('%d.%m.%Y')})"
+        print(line)
         if args.steps:
             items = wrapper.get_checklist_items(
                 list_name=args.list_name, task_name=task.title
