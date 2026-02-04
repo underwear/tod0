@@ -119,6 +119,30 @@ def rm(args):
     wrapper.remove_task(task_list, try_parse_as_int(name))
 
 
+def update(args):
+    task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+
+    due_datetime = None
+    if args.due is not None:
+        due_datetime = parse_datetime(args.due)
+
+    reminder_datetime = None
+    if args.reminder is not None:
+        reminder_datetime = parse_datetime(args.reminder)
+
+    recurrence = parse_recurrence(args.recurrence)
+
+    wrapper.update_task(
+        list_name=task_list,
+        task_name=try_parse_as_int(name),
+        title=args.title,
+        due_datetime=due_datetime,
+        reminder_datetime=reminder_datetime,
+        important=True if args.important else None,
+        recurrence=recurrence,
+    )
+
+
 def new_step(args):
     task_list, task_name = parse_task_path(args.task_name, getattr(args, "list", None))
     wrapper.create_checklist_item(
@@ -244,6 +268,21 @@ def setup_parser():
         help="Specify the list name explicitly (allows task names with slashes)",
     )
     subparser.set_defaults(func=rm)
+
+    # create parser for 'update' command
+    subparser = subparsers.add_parser("update", help="Update an existing task")
+    subparser.add_argument("task_name", help=helptext_task_name)
+    subparser.add_argument("--title", help="New title for the task")
+    subparser.add_argument("-r", "--reminder")
+    subparser.add_argument("-d", "--due")
+    subparser.add_argument("-I", "--important", action="store_true")
+    subparser.add_argument("-R", "--recurrence")
+    subparser.add_argument(
+        "-l",
+        "--list",
+        help="Specify the list name explicitly (allows task names with slashes)",
+    )
+    subparser.set_defaults(func=update)
 
     # create parser for 'new-step' command
     subparser = subparsers.add_parser(

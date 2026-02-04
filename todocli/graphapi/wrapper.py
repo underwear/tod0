@@ -197,6 +197,41 @@ def remove_task(list_name: str, task_name: Union[str, int]):
     return True if response.ok else response.raise_for_status()
 
 
+def update_task(
+    list_name: str,
+    task_name: Union[str, int],
+    title: str | None = None,
+    due_datetime: datetime | None = None,
+    reminder_datetime: datetime | None = None,
+    important: bool | None = None,
+    recurrence: dict | None = None,
+):
+    list_id = get_list_id_by_name(list_name)
+    task_id = get_task_id_by_name(list_name, task_name)
+
+    request_body = {}
+    if title is not None:
+        request_body["title"] = title
+    if due_datetime is not None:
+        request_body["dueDateTime"] = datetime_to_api_timestamp(due_datetime)
+    if reminder_datetime is not None:
+        request_body["reminderDateTime"] = datetime_to_api_timestamp(reminder_datetime)
+    if important is not None:
+        request_body["importance"] = (
+            TaskImportance.HIGH if important else TaskImportance.NORMAL
+        )
+    if recurrence is not None:
+        request_body["recurrence"] = recurrence
+
+    if not request_body:
+        raise ValueError("No fields to update")
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
+    session = get_oauth_session()
+    response = session.patch(endpoint, json=request_body)
+    return True if response.ok else response.raise_for_status()
+
+
 def get_list_id_by_name(list_name):
     endpoint = f"{BASE_URL}?$filter=startswith(displayName,'{list_name}')"
     session = get_oauth_session()
