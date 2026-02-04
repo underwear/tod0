@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from todocli.utils.datetime_util import (
     parse_datetime,
     add_day_if_past,
+    format_date,
     ErrorParsingTime,
     TimeExpressionNotRecognized,
 )
@@ -109,6 +110,63 @@ class TestDatetimeParser(unittest.TestCase):
                     pass
                 else:
                     raise
+
+
+class TestISODateFormat(unittest.TestCase):
+    def test_iso_date_format(self):
+        dt = parse_datetime("2026-02-11")
+        self.assertEqual(dt.year, 2026)
+        self.assertEqual(dt.month, 2)
+        self.assertEqual(dt.day, 11)
+
+    def test_iso_date_single_digit_month(self):
+        dt = parse_datetime("2026-2-11")
+        self.assertEqual(dt.year, 2026)
+        self.assertEqual(dt.month, 2)
+        self.assertEqual(dt.day, 11)
+
+
+class TestUSDateFormat(unittest.TestCase):
+    def test_us_date_format_full(self):
+        dt = parse_datetime("02/11/2026")
+        self.assertEqual(dt.year, 2026)
+        self.assertEqual(dt.month, 2)
+        self.assertEqual(dt.day, 11)
+
+    def test_us_date_format_short(self):
+        dt = parse_datetime("02/11/26")
+        self.assertEqual(dt.year, 2026)
+        self.assertEqual(dt.month, 2)
+        self.assertEqual(dt.day, 11)
+
+
+class TestFormatDate(unittest.TestCase):
+    def setUp(self):
+        self.dt = datetime(2026, 2, 11, 7, 0, 0)
+
+    def test_format_date_eu(self):
+        self.assertEqual(format_date(self.dt, "eu"), "11.02.2026")
+
+    def test_format_date_us(self):
+        self.assertEqual(format_date(self.dt, "us"), "02/11/2026")
+
+    def test_format_date_iso(self):
+        self.assertEqual(format_date(self.dt, "iso"), "2026-02-11")
+
+    def test_format_date_default_is_eu(self):
+        self.assertEqual(format_date(self.dt), "11.02.2026")
+
+
+class TestErrorMessage(unittest.TestCase):
+    def test_error_message_contains_formats(self):
+        try:
+            parse_datetime("not-a-date")
+        except TimeExpressionNotRecognized as e:
+            self.assertIn("DD.MM.YYYY", e.message)
+            self.assertIn("YYYY-MM-DD", e.message)
+            self.assertIn("MM/DD/YYYY", e.message)
+        else:
+            self.fail("TimeExpressionNotRecognized not raised")
 
 
 if __name__ == "__main__":

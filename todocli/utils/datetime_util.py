@@ -5,7 +5,10 @@ from typing import Union
 
 class TimeExpressionNotRecognized(Exception):
     def __init__(self, time_str):
-        self.message = f"Time expression could not be parsed: {time_str}"
+        self.message = (
+            f"Time expression could not be parsed: {time_str}\n"
+            f"Supported date formats: DD.MM.YYYY, YYYY-MM-DD, MM/DD/YYYY"
+        )
         super(TimeExpressionNotRecognized, self).__init__(self.message)
 
 
@@ -140,6 +143,42 @@ def parse_datetime(datetime_str: str):
                 microsecond=0,
             )
 
+        if re.match(r"\d{4}-\d{1,2}-\d{1,2}$", datetime_str):
+            """e.g. 2026-02-11 or 2026-2-11 (ISO 8601)"""
+            parts = datetime_str.split("-")
+            year = int(parts[0])
+            month = int(parts[1])
+            day = int(parts[2])
+            return datetime.now().replace(
+                year=year,
+                day=day,
+                month=month,
+                hour=7,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+        if re.match(
+            r"([0-9]{1,2}/[0-9]{1,2}/(([0-9]{4})|([0-9]{2})))$",
+            datetime_str,
+        ):
+            """e.g. 02/11/2026 or 02/11/26 (US date, MM/DD/YYYY)"""
+            parts = datetime_str.split("/")
+            month = int(parts[0])
+            day = int(parts[1])
+            year_str = parts[2]
+            year = int("20" + year_str) if len(year_str) == 2 else int(year_str)
+            return datetime.now().replace(
+                year=year,
+                day=day,
+                month=month,
+                hour=7,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
         if re.match(
             r"([0-9]{1,2}\.[0-9]{1,2}\. [0-9]{1,2}:[0-9]{2})",
             datetime_str,
@@ -153,23 +192,40 @@ def parse_datetime(datetime_str: str):
                 day=day, month=month, hour=hour, minute=minute, second=0, microsecond=0
             )
 
-        # if re.match(
-        #     r"([0-9]{1,2}/[0-9]{1,2} [0-9]{1,2}:[0-9]{2} (am|pm))",
-        #     datetime_str,
-        #     re.IGNORECASE,
-        # ):
-        #     """ e.g. 01/17 5:00 pm """
-        #     split_str = datetime_str.split(" ")
-        #     day, month = parse_day_month_MM_DD(split_str[0])
-        #     hour, minute = parse_hour_minute(split_str[1])
-        #     return datetime.now().replace(
-        #         day=day, month=month, hour=hour, minute=minute, second=0, microsecond=0
-        #     )
+        if re.match(
+            r"([0-9]{1,2}/[0-9]{1,2} [0-9]{1,2}:[0-9]{2} (am|pm))",
+            datetime_str,
+            re.IGNORECASE,
+        ):
+            """e.g. 01/17 5:00 pm"""
+            split_str = datetime_str.split(" ")
+            day, month = parse_day_month_MM_DD(split_str[0])
+            hour, minute = parse_hour_minute(split_str[1])
+
+            if split_str[2].lower() == "am":
+                if hour == 12:
+                    hour = 0
+            else:
+                if hour != 12:
+                    hour = hour + 12
+
+            return datetime.now().replace(
+                day=day, month=month, hour=hour, minute=minute, second=0, microsecond=0
+            )
 
     except ValueError as e:
         raise ErrorParsingTime(str(e))
 
     raise TimeExpressionNotRecognized(datetime_str)
+
+
+def format_date(dt: datetime, fmt: str = "eu") -> str:
+    if fmt == "iso":
+        return dt.strftime("%Y-%m-%d")
+    elif fmt == "us":
+        return dt.strftime("%m/%d/%Y")
+    else:
+        return dt.strftime("%d.%m.%Y")
 
 
 def datetime_to_api_timestamp(dt: datetime | None):

@@ -6,6 +6,7 @@ import todocli.graphapi.wrapper as wrapper
 from todocli.utils.update_checker import check as update_checker
 from todocli.utils.datetime_util import (
     parse_datetime,
+    format_date,
     TimeExpressionNotRecognized,
     ErrorParsingTime,
 )
@@ -60,13 +61,14 @@ def ls(args):
 
 
 def lst(args):
+    date_fmt = getattr(args, "date_format", "eu")
     tasks = wrapper.get_tasks(list_name=args.list_name)
     for i, task in enumerate(tasks):
         line = f"[{i}]\t{task.title}"
         if task.importance == "high":
             line += " !"
         if task.due_datetime is not None:
-            line += f" (due: {task.due_datetime.strftime('%d.%m.%Y')})"
+            line += f" (due: {format_date(task.due_datetime, date_fmt)})"
         print(line)
         if args.steps:
             items = wrapper.get_checklist_items(
@@ -232,6 +234,12 @@ def setup_parser():
         "--steps",
         action="store_true",
         help="Display checklist items (steps) for each task",
+    )
+    subparser.add_argument(
+        "--date-format",
+        choices=["eu", "us", "iso"],
+        default="eu",
+        help="Date display format: eu (DD.MM.YYYY), us (MM/DD/YYYY), iso (YYYY-MM-DD)",
     )
     subparser.set_defaults(func=lst)
 

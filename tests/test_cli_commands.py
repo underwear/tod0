@@ -172,6 +172,22 @@ class TestCLIArgumentParsing(unittest.TestCase):
         args = self.parser.parse_args(["--interactive", "ls"])
         self.assertTrue(args.interactive)
 
+    def test_lst_date_format_flag(self):
+        """Test lst command with --date-format flag"""
+        args = self.parser.parse_args(["lst", "--date-format", "iso"])
+        self.assertEqual(args.date_format, "iso")
+
+        args = self.parser.parse_args(["lst", "--date-format", "us"])
+        self.assertEqual(args.date_format, "us")
+
+        args = self.parser.parse_args(["lst", "--date-format", "eu"])
+        self.assertEqual(args.date_format, "eu")
+
+    def test_lst_date_format_default(self):
+        """Test lst command defaults date-format to eu"""
+        args = self.parser.parse_args(["lst"])
+        self.assertEqual(args.date_format, "eu")
+
 
 class TestParseTaskPath(unittest.TestCase):
     """Test parse_task_path function"""
