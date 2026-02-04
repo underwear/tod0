@@ -249,14 +249,16 @@ def get_task_id_by_name(list_name: str, task_name: str):
             return [Task(x) for x in response_value][0].id
         except IndexError:
             raise TaskNotFoundByName(task_name, list_name)
-    # elif isinstance(task_name, int):
-    #    tasks = get_tasks(list_name, task_list_position + 1)
-    #    try:
-    #        return tasks[task_list_position].id
-    #    except IndexError:
-    #        raise TaskNotFoundByIndex(task_list_position, list_name)
+    elif isinstance(task_name, int):
+        tasks = get_tasks(list_name=list_name)
+        try:
+            return tasks[task_name].id
+        except IndexError:
+            raise TaskNotFoundByIndex(task_name, list_name)
     else:
-        raise
+        raise TypeError(
+            f"task_name must be str or int, got {type(task_name).__name__}"
+        )
 
 
 def get_checklist_items(
@@ -366,4 +368,6 @@ def get_step_id(
                 return item.id
         raise StepNotFoundByName(step_name, task_name)
     else:
-        raise
+        raise TypeError(
+            f"step_name must be str or int, got {type(step_name).__name__}"
+        )
