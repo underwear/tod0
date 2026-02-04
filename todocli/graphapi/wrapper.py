@@ -321,6 +321,49 @@ def get_checklist_items(
     return [ChecklistItem(x) for x in response_value]
 
 
+BATCH_MAX_REQUESTS = 20
+
+
+def get_checklist_items_batch(list_id: str, task_ids: list[str]):
+    """Fetch checklist items for multiple tasks using $batch API.
+
+    Returns dict mapping task_id -> list[ChecklistItem].
+    """
+    if not task_ids:
+        return {}
+
+    result = {}
+    session = get_oauth_session()
+
+    # Chunk into groups of BATCH_MAX_REQUESTS
+    for i in range(0, len(task_ids), BATCH_MAX_REQUESTS):
+        chunk = task_ids[i : i + BATCH_MAX_REQUESTS]
+        body = {
+            "requests": [
+                {
+                    "id": task_id,
+                    "method": "GET",
+                    "url": f"{BASE_RELATE_URL}/{list_id}/tasks/{task_id}/checklistItems",
+                }
+                for task_id in chunk
+            ]
+        }
+        response = session.post(BATCH_URL, json=body)
+        if not response.ok:
+            response.raise_for_status()
+
+        batch_response = json.loads(response.content.decode())
+        for resp in batch_response.get("responses", []):
+            tid = resp["id"]
+            if resp.get("status") == 200:
+                items = resp.get("body", {}).get("value", [])
+                result[tid] = [ChecklistItem(x) for x in items]
+            else:
+                result[tid] = []
+
+    return result
+
+
 def create_checklist_item(
     step_name: str,
     list_name: str = None,

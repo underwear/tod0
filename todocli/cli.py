@@ -62,7 +62,17 @@ def ls(args):
 
 def lst(args):
     date_fmt = getattr(args, "date_format", "eu")
-    tasks = wrapper.get_tasks(list_name=args.list_name)
+    no_steps = getattr(args, "no_steps", False)
+    list_id = wrapper.get_list_id_by_name(args.list_name)
+    tasks = wrapper.get_tasks(list_id=list_id)
+
+    if not no_steps and tasks:
+        steps_map = wrapper.get_checklist_items_batch(
+            list_id, [t.id for t in tasks]
+        )
+    else:
+        steps_map = {}
+
     for i, task in enumerate(tasks):
         line = f"[{i}]\t{task.title}"
         if task.importance == "high":
@@ -70,13 +80,9 @@ def lst(args):
         if task.due_datetime is not None:
             line += f" (due: {format_date(task.due_datetime, date_fmt)})"
         print(line)
-        if args.steps:
-            items = wrapper.get_checklist_items(
-                list_name=args.list_name, task_name=task.title
-            )
-            for item in items:
-                check = "x" if item.is_checked else " "
-                print(f"    [{check}] {item.display_name}")
+        for item in steps_map.get(task.id, []):
+            check = "x" if item.is_checked else " "
+            print(f"    [{check}] {item.display_name}")
 
 
 def new(args):
@@ -238,10 +244,9 @@ def setup_parser():
                                 all tasks from the default task list will be displayed",
     )
     subparser.add_argument(
-        "-s",
-        "--steps",
+        "--no-steps",
         action="store_true",
-        help="Display checklist items (steps) for each task",
+        help="Hide checklist items (steps) for faster output",
     )
     subparser.add_argument(
         "--date-format",

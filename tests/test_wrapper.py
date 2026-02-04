@@ -3,6 +3,7 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
+import json
 from todocli.graphapi.wrapper import (
     ListNotFound,
     TaskNotFoundByName,
@@ -11,8 +12,10 @@ from todocli.graphapi.wrapper import (
     StepNotFoundByName,
     BASE_URL,
     BATCH_URL,
+    BATCH_MAX_REQUESTS,
     get_task_id_by_name,
     get_step_id,
+    get_checklist_items_batch,
 )
 
 
@@ -100,6 +103,86 @@ class TestGetStepId(unittest.TestCase):
     def test_get_step_id_with_invalid_type(self, mock_get_items):
         with self.assertRaises(TypeError):
             get_step_id("Tasks", "my task", 3.14, list_id="lid", task_id="tid")
+
+
+class TestGetChecklistItemsBatch(unittest.TestCase):
+    """Test get_checklist_items_batch using $batch API"""
+
+    @patch("todocli.graphapi.wrapper.get_oauth_session")
+    def test_batch_single_task(self, mock_session):
+        batch_response = {
+            "responses": [
+                {
+                    "id": "tid-1",
+                    "status": 200,
+                    "body": {
+                        "value": [
+                            {
+                                "id": "step-1",
+                                "displayName": "Buy eggs",
+                                "isChecked": False,
+                                "checkedDateTime": None,
+                                "createdDateTime": "2026-01-01T00:00:00.0000000Z",
+                            }
+                        ]
+                    },
+                }
+            ]
+        }
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.content = json.dumps(batch_response).encode()
+        mock_session.return_value.post.return_value = mock_resp
+
+        result = get_checklist_items_batch("lid-1", ["tid-1"])
+        self.assertIn("tid-1", result)
+        self.assertEqual(len(result["tid-1"]), 1)
+        self.assertEqual(result["tid-1"][0].display_name, "Buy eggs")
+
+        # Verify batch request format
+        call_args = mock_session.return_value.post.call_args
+        self.assertEqual(call_args.args[0], BATCH_URL)
+        req_body = call_args.kwargs["json"]
+        self.assertEqual(len(req_body["requests"]), 1)
+        self.assertEqual(req_body["requests"][0]["method"], "GET")
+
+    def test_batch_empty_tasks(self):
+        result = get_checklist_items_batch("lid-1", [])
+        self.assertEqual(result, {})
+
+    @patch("todocli.graphapi.wrapper.get_oauth_session")
+    def test_batch_chunking(self, mock_session):
+        task_ids = [f"tid-{i}" for i in range(25)]
+
+        def make_batch_response(chunk_ids):
+            return {
+                "responses": [
+                    {"id": tid, "status": 200, "body": {"value": []}}
+                    for tid in chunk_ids
+                ]
+            }
+
+        call_count = [0]
+
+        def mock_post(url, json=None):
+            resp = MagicMock()
+            resp.ok = True
+            chunk_ids = [r["id"] for r in json["requests"]]
+            resp.content = __import__("json").dumps(
+                make_batch_response(chunk_ids)
+            ).encode()
+            call_count[0] += 1
+            return resp
+
+        mock_session.return_value.post.side_effect = mock_post
+
+        result = get_checklist_items_batch("lid-1", task_ids)
+
+        # Should have made 2 calls: 20 + 5
+        self.assertEqual(call_count[0], 2)
+        self.assertEqual(len(result), 25)
+        for tid in task_ids:
+            self.assertIn(tid, result)
 
 
 if __name__ == "__main__":
