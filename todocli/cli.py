@@ -198,7 +198,7 @@ def complete(args):
     use_json = getattr(args, "json", False)
     results = []
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         returned_id, title = wrapper.complete_task(list_name=list_name, task_id=task_id)
@@ -232,7 +232,7 @@ def complete(args):
             )
 
     if use_json:
-        print(json.dumps(results if len(results) > 1 else results[0], indent=2))
+        print(json.dumps(results, indent=2))
     else:
         for r in results:
             print(r["message"])
@@ -243,7 +243,7 @@ def uncomplete(args):
     use_json = getattr(args, "json", False)
     results = []
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         returned_id, title = wrapper.uncomplete_task(
@@ -279,7 +279,7 @@ def uncomplete(args):
             )
 
     if use_json:
-        print(json.dumps(results if len(results) > 1 else results[0], indent=2))
+        print(json.dumps(results, indent=2))
     else:
         for r in results:
             print(r["message"])
@@ -290,23 +290,31 @@ def rm(args):
     skip_confirm = getattr(args, "yes", False)
     use_json = getattr(args, "json", False)
     results = []
+    skipped_count = 0
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         if not confirm_action(f"Remove task (id: {task_id[:8]}...)?", skip_confirm):
-            if not use_json:
-                print("Skipped")
-            return
-        returned_id = wrapper.remove_task(list_name=list_name, task_id=task_id)
-        results.append(
-            {
-                "action": "removed",
-                "id": returned_id,
-                "list": list_name,
-                "message": f"Removed task (id: {returned_id[:8]}...)",
-            }
-        )
+            skipped_count += 1
+            results.append(
+                {
+                    "action": "skipped",
+                    "id": task_id,
+                    "list": list_name,
+                    "message": "Skipped (not confirmed)",
+                }
+            )
+        else:
+            returned_id = wrapper.remove_task(list_name=list_name, task_id=task_id)
+            results.append(
+                {
+                    "action": "removed",
+                    "id": returned_id,
+                    "list": list_name,
+                    "message": f"Removed task (id: {returned_id[:8]}...)",
+                }
+            )
     else:
         task_names = getattr(args, "task_names", None) or [
             getattr(args, "task_name", None)
@@ -319,8 +327,15 @@ def rm(args):
             if not confirm_action(
                 f"Remove task '{name}' from '{task_list}'?", skip_confirm
             ):
-                if not use_json:
-                    print(f"Skipped '{name}'")
+                skipped_count += 1
+                results.append(
+                    {
+                        "action": "skipped",
+                        "title": str(name),
+                        "list": task_list,
+                        "message": f"Skipped '{name}' (not confirmed)",
+                    }
+                )
                 continue
 
             returned_id = wrapper.remove_task(
@@ -336,12 +351,15 @@ def rm(args):
                 }
             )
 
-    if results:
-        if use_json:
-            print(json.dumps(results if len(results) > 1 else results[0], indent=2))
-        else:
-            for r in results:
-                print(r["message"])
+    if use_json:
+        print(json.dumps(results, indent=2))
+    else:
+        for r in results:
+            print(r["message"])
+
+    # Raise if all tasks were skipped (for non-zero exit code)
+    if skipped_count > 0 and skipped_count == len(results):
+        raise ValueError("All tasks were skipped (not confirmed)")
 
 
 def update(args):
@@ -358,7 +376,7 @@ def update(args):
 
     recurrence = parse_recurrence(args.recurrence)
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         returned_id, title = wrapper.update_task(
@@ -406,7 +424,7 @@ def new_step(args):
     task_id = getattr(args, "task_id", None)
     use_json = getattr(args, "json", False)
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         step_id, step_name = wrapper.create_checklist_item(
@@ -449,7 +467,7 @@ def new_step(args):
 def list_steps(args):
     task_id = getattr(args, "task_id", None)
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         items = wrapper.get_checklist_items(list_name=list_name, task_id=task_id)
@@ -475,7 +493,7 @@ def complete_step(args):
     task_id = getattr(args, "task_id", None)
     use_json = getattr(args, "json", False)
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         step_id, step_name = wrapper.complete_checklist_item(
@@ -519,7 +537,7 @@ def uncomplete_step(args):
     task_id = getattr(args, "task_id", None)
     use_json = getattr(args, "json", False)
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         step_id, step_name = wrapper.uncomplete_checklist_item(
@@ -563,7 +581,7 @@ def rm_step(args):
     task_id = getattr(args, "task_id", None)
     use_json = getattr(args, "json", False)
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         list_name = getattr(args, "list", None) or "Tasks"
         step_id = wrapper.delete_checklist_item(
@@ -606,7 +624,7 @@ def show(args):
     task_id = getattr(args, "task_id", None)
     date_fmt = getattr(args, "date_format", "eu")
 
-    # If --id is provided, use it directly (requires -l/--list)
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
         task_list = getattr(args, "list", None) or "Tasks"
         task = wrapper.get_task(list_name=task_list, task_id=task_id)
@@ -712,7 +730,7 @@ def _add_id_flag(subparser):
     subparser.add_argument(
         "--id",
         dest="task_id",
-        help="Task ID (from JSON output). When used, task_name is ignored.",
+        help="Task ID (from --json output). List defaults to 'Tasks' if -l not specified.",
     )
 
 
