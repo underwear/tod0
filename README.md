@@ -108,7 +108,7 @@ todo rm-list "Project X" -y       # Delete list (no confirmation)
 
 ```bash
 todo move "Task" "Work"           # Move task to "Work" list
-todo move "Shopping/Milk" "Home"  # Move from Shopping to Home
+todo move "Milk" "Home" -l Shopping  # Move from Shopping to Home
 todo move --index 0 "Work"        # Move task #0 to Work
 ```
 
@@ -179,6 +179,7 @@ todo rm --id "AAMkADU3..." -l Tasks -y
 | `c` | `complete` |
 | `d` | `rm` |
 | `newl` | `new-list` |
+| `reopen` | `uncomplete` |
 
 ```bash
 todo t          # = todo tasks

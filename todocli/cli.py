@@ -42,6 +42,24 @@ def _output_result(args, result_dict):
         print(result_dict.get("message", "Done"))
 
 
+def _is_json_mode():
+    """Check if --json or -j flag is present in sys.argv."""
+    return "--json" in sys.argv or "-j" in sys.argv
+
+
+def _output_error(error_code: str, message: str):
+    """Output error as JSON or plain text based on --json flag."""
+    if _is_json_mode():
+        error_dict = {
+            "action": "failed",
+            "error": message,
+            "code": error_code,
+        }
+        print(json.dumps(error_dict, indent=2))
+    else:
+        print(message)
+
+
 def print_list(item_list):
     for i, x in enumerate(item_list):
         print(f"[{i}]\t{x}")
@@ -289,6 +307,7 @@ def _get_enum_value(enum_or_value):
 
 def complete(args):
     task_id = getattr(args, "task_id", None)
+    task_index = getattr(args, "task_index", None)
     use_json = getattr(args, "json", False)
     results = []
 
@@ -303,6 +322,21 @@ def complete(args):
                 "title": title,
                 "list": list_name,
                 "message": f"Completed task '{title}'",
+            }
+        )
+    # If --index is provided, use it as explicit index
+    elif task_index is not None:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_id, title = wrapper.complete_task(
+            list_name=list_name, task_name=task_index
+        )
+        results.append(
+            {
+                "action": "completed",
+                "id": returned_id,
+                "title": title,
+                "list": list_name,
+                "message": f"Completed task '{title}' in '{list_name}'",
             }
         )
     else:
@@ -334,6 +368,7 @@ def complete(args):
 
 def uncomplete(args):
     task_id = getattr(args, "task_id", None)
+    task_index = getattr(args, "task_index", None)
     use_json = getattr(args, "json", False)
     results = []
 
@@ -350,6 +385,21 @@ def uncomplete(args):
                 "title": title,
                 "list": list_name,
                 "message": f"Uncompleted task '{title}'",
+            }
+        )
+    # If --index is provided, use it as explicit index
+    elif task_index is not None:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_id, title = wrapper.uncomplete_task(
+            list_name=list_name, task_name=task_index
+        )
+        results.append(
+            {
+                "action": "uncompleted",
+                "id": returned_id,
+                "title": title,
+                "list": list_name,
+                "message": f"Uncompleted task '{title}' in '{list_name}'",
             }
         )
     else:
@@ -381,6 +431,7 @@ def uncomplete(args):
 
 def rm(args):
     task_id = getattr(args, "task_id", None)
+    task_index = getattr(args, "task_index", None)
     skip_confirm = getattr(args, "yes", False)
     use_json = getattr(args, "json", False)
     results = []
@@ -407,6 +458,34 @@ def rm(args):
                     "id": returned_id,
                     "list": list_name,
                     "message": f"Removed task (id: {returned_id[:8]}...)",
+                }
+            )
+    # If --index is provided, use it as explicit index
+    elif task_index is not None:
+        list_name = getattr(args, "list", None) or "Tasks"
+        if not confirm_action(
+            f"Remove task #{task_index} from '{list_name}'?", skip_confirm
+        ):
+            skipped_count += 1
+            results.append(
+                {
+                    "action": "skipped",
+                    "index": task_index,
+                    "list": list_name,
+                    "message": f"Skipped task #{task_index} (not confirmed)",
+                }
+            )
+        else:
+            returned_id = wrapper.remove_task(
+                list_name=list_name, task_name=task_index
+            )
+            results.append(
+                {
+                    "action": "removed",
+                    "id": returned_id,
+                    "index": task_index,
+                    "list": list_name,
+                    "message": f"Removed task #{task_index} from '{list_name}'",
                 }
             )
     else:
@@ -624,19 +703,38 @@ def list_steps(args):
 
 def complete_step(args):
     task_id = getattr(args, "task_id", None)
+    step_id_arg = getattr(args, "step_id", None)
     use_json = getattr(args, "json", False)
 
-    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
-    if task_id:
+    # If --step-id is provided, use it directly (requires --id for task)
+    if step_id_arg:
+        if not task_id:
+            raise ValueError("--step-id requires --id (task ID) to be specified")
         list_name = getattr(args, "list", None) or "Tasks"
-        step_id, step_name = wrapper.complete_checklist_item(
+        returned_step_id, step_name = wrapper.complete_checklist_item(
+            list_name=list_name,
+            task_id=task_id,
+            step_id=step_id_arg,
+        )
+        result = {
+            "action": "completed",
+            "id": returned_step_id,
+            "name": step_name,
+            "task_id": task_id,
+            "list": list_name,
+            "message": f"Completed step '{step_name}'",
+        }
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
+    elif task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_step_id, step_name = wrapper.complete_checklist_item(
             list_name=list_name,
             task_id=task_id,
             step_name=try_parse_as_int(args.step_name),
         )
         result = {
             "action": "completed",
-            "id": step_id,
+            "id": returned_step_id,
             "name": step_name,
             "task_id": task_id,
             "list": list_name,
@@ -646,14 +744,14 @@ def complete_step(args):
         task_list, task_name = parse_task_path(
             args.task_name, getattr(args, "list", None)
         )
-        step_id, step_name = wrapper.complete_checklist_item(
+        returned_step_id, step_name = wrapper.complete_checklist_item(
             list_name=task_list,
             task_name=try_parse_as_int(task_name),
             step_name=try_parse_as_int(args.step_name),
         )
         result = {
             "action": "completed",
-            "id": step_id,
+            "id": returned_step_id,
             "name": step_name,
             "task": str(task_name),
             "list": task_list,
@@ -668,19 +766,38 @@ def complete_step(args):
 
 def uncomplete_step(args):
     task_id = getattr(args, "task_id", None)
+    step_id_arg = getattr(args, "step_id", None)
     use_json = getattr(args, "json", False)
 
-    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
-    if task_id:
+    # If --step-id is provided, use it directly (requires --id for task)
+    if step_id_arg:
+        if not task_id:
+            raise ValueError("--step-id requires --id (task ID) to be specified")
         list_name = getattr(args, "list", None) or "Tasks"
-        step_id, step_name = wrapper.uncomplete_checklist_item(
+        returned_step_id, step_name = wrapper.uncomplete_checklist_item(
+            list_name=list_name,
+            task_id=task_id,
+            step_id=step_id_arg,
+        )
+        result = {
+            "action": "uncompleted",
+            "id": returned_step_id,
+            "name": step_name,
+            "task_id": task_id,
+            "list": list_name,
+            "message": f"Uncompleted step '{step_name}'",
+        }
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
+    elif task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_step_id, step_name = wrapper.uncomplete_checklist_item(
             list_name=list_name,
             task_id=task_id,
             step_name=try_parse_as_int(args.step_name),
         )
         result = {
             "action": "uncompleted",
-            "id": step_id,
+            "id": returned_step_id,
             "name": step_name,
             "task_id": task_id,
             "list": list_name,
@@ -690,14 +807,14 @@ def uncomplete_step(args):
         task_list, task_name = parse_task_path(
             args.task_name, getattr(args, "list", None)
         )
-        step_id, step_name = wrapper.uncomplete_checklist_item(
+        returned_step_id, step_name = wrapper.uncomplete_checklist_item(
             list_name=task_list,
             task_name=try_parse_as_int(task_name),
             step_name=try_parse_as_int(args.step_name),
         )
         result = {
             "action": "uncompleted",
-            "id": step_id,
+            "id": returned_step_id,
             "name": step_name,
             "task": str(task_name),
             "list": task_list,
@@ -712,35 +829,53 @@ def uncomplete_step(args):
 
 def rm_step(args):
     task_id = getattr(args, "task_id", None)
+    step_id_arg = getattr(args, "step_id", None)
     use_json = getattr(args, "json", False)
 
-    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
-    if task_id:
+    # If --step-id is provided, use it directly (requires --id for task)
+    if step_id_arg:
+        if not task_id:
+            raise ValueError("--step-id requires --id (task ID) to be specified")
         list_name = getattr(args, "list", None) or "Tasks"
-        step_id = wrapper.delete_checklist_item(
+        returned_step_id = wrapper.delete_checklist_item(
+            list_name=list_name,
+            task_id=task_id,
+            step_id=step_id_arg,
+        )
+        result = {
+            "action": "removed",
+            "id": returned_step_id,
+            "task_id": task_id,
+            "list": list_name,
+            "message": f"Removed step (id: {returned_step_id[:8]}...)",
+        }
+    # If --id is provided, use it directly (-l/--list defaults to "Tasks")
+    elif task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_step_id = wrapper.delete_checklist_item(
             list_name=list_name,
             task_id=task_id,
             step_name=try_parse_as_int(args.step_name),
         )
         result = {
             "action": "removed",
-            "id": step_id,
+            "id": returned_step_id,
             "task_id": task_id,
             "list": list_name,
-            "message": f"Removed step (id: {step_id[:8]}...)",
+            "message": f"Removed step (id: {returned_step_id[:8]}...)",
         }
     else:
         task_list, task_name = parse_task_path(
             args.task_name, getattr(args, "list", None)
         )
-        step_id = wrapper.delete_checklist_item(
+        returned_step_id = wrapper.delete_checklist_item(
             list_name=task_list,
             task_name=try_parse_as_int(task_name),
             step_name=try_parse_as_int(args.step_name),
         )
         result = {
             "action": "removed",
-            "id": step_id,
+            "id": returned_step_id,
             "task": str(task_name),
             "list": task_list,
             "message": f"Removed step from '{task_name}'",
@@ -874,6 +1009,15 @@ def _add_index_flag(subparser):
         dest="task_index",
         type=int,
         help="Task index (0-based, as shown in 'tasks' output). Explicit alternative to positional arg.",
+    )
+
+
+def _add_step_id_flag(subparser):
+    """Add --step-id flag for direct step ID access (useful for AI agents)."""
+    subparser.add_argument(
+        "--step-id",
+        dest="step_id",
+        help="Step ID (from list-steps --json output). Skips step lookup by name/index.",
     )
 
 
@@ -1042,23 +1186,31 @@ def setup_parser():
         )
         _add_list_flag(subparser)
         _add_id_flag(subparser)
+        _add_index_flag(subparser)
         _add_json_flag(subparser)
         subparser.set_defaults(func=complete)
 
-    # 'uncomplete' command
-    subparser = subparsers.add_parser(
-        "uncomplete", help="Mark completed task(s) as not completed"
-    )
-    subparser.add_argument(
-        "task_names",
-        nargs="*",
-        metavar="task",
-        help=helptext_task_name,
-    )
-    _add_list_flag(subparser)
-    _add_id_flag(subparser)
-    _add_json_flag(subparser)
-    subparser.set_defaults(func=uncomplete)
+    # 'uncomplete' command and 'reopen' alias
+    for cmd_name in ["uncomplete", "reopen"]:
+        subparser = subparsers.add_parser(
+            cmd_name,
+            help=(
+                "Mark completed task(s) as not completed"
+                if cmd_name == "uncomplete"
+                else argparse.SUPPRESS
+            ),
+        )
+        subparser.add_argument(
+            "task_names",
+            nargs="*",
+            metavar="task",
+            help=helptext_task_name,
+        )
+        _add_list_flag(subparser)
+        _add_id_flag(subparser)
+        _add_index_flag(subparser)
+        _add_json_flag(subparser)
+        subparser.set_defaults(func=uncomplete)
 
     # 'rm' command and 'd' alias (delete)
     for cmd_name in ["rm", "d"]:
@@ -1080,6 +1232,7 @@ def setup_parser():
         )
         _add_list_flag(subparser)
         _add_id_flag(subparser)
+        _add_index_flag(subparser)
         _add_json_flag(subparser)
         subparser.set_defaults(func=rm)
 
@@ -1137,9 +1290,10 @@ def setup_parser():
     # 'complete-step' command
     subparser = subparsers.add_parser("complete-step", help="Mark a step as checked")
     subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
-    subparser.add_argument("step_name", help=helptext_step_name)
+    subparser.add_argument("step_name", nargs="?", help=helptext_step_name)
     _add_list_flag(subparser)
     _add_id_flag(subparser)
+    _add_step_id_flag(subparser)
     _add_json_flag(subparser)
     subparser.set_defaults(func=complete_step)
 
@@ -1148,18 +1302,20 @@ def setup_parser():
         "uncomplete-step", help="Mark a checked step as unchecked"
     )
     subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
-    subparser.add_argument("step_name", help=helptext_step_name)
+    subparser.add_argument("step_name", nargs="?", help=helptext_step_name)
     _add_list_flag(subparser)
     _add_id_flag(subparser)
+    _add_step_id_flag(subparser)
     _add_json_flag(subparser)
     subparser.set_defaults(func=uncomplete_step)
 
     # 'rm-step' command
     subparser = subparsers.add_parser("rm-step", help="Remove a step from a task")
     subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
-    subparser.add_argument("step_name", help=helptext_step_name)
+    subparser.add_argument("step_name", nargs="?", help=helptext_step_name)
     _add_list_flag(subparser)
     _add_id_flag(subparser)
+    _add_step_id_flag(subparser)
     _add_json_flag(subparser)
     subparser.set_defaults(func=rm_step)
 
@@ -1189,37 +1345,37 @@ def main():
                     first_run = False
 
             except argparse.ArgumentError as e:
-                print(f"Argument error: {e}")
+                _output_error("argument_error", f"Argument error: {e}")
                 error_occurred = True
             except wrapper.TaskNotFoundByName as e:
-                print(e.message)
+                _output_error("task_not_found", e.message)
                 error_occurred = True
             except wrapper.ListNotFound as e:
-                print(e.message)
+                _output_error("list_not_found", e.message)
                 error_occurred = True
             except wrapper.TaskNotFoundByIndex as e:
-                print(e.message)
+                _output_error("task_not_found", e.message)
                 error_occurred = True
             except wrapper.StepNotFoundByName as e:
-                print(e.message)
+                _output_error("step_not_found", e.message)
                 error_occurred = True
             except wrapper.StepNotFoundByIndex as e:
-                print(e.message)
+                _output_error("step_not_found", e.message)
                 error_occurred = True
             except TimeExpressionNotRecognized as e:
-                print(e.message)
+                _output_error("invalid_time", e.message)
                 error_occurred = True
             except ErrorParsingTime as e:
-                print(e.message)
+                _output_error("invalid_time", e.message)
                 error_occurred = True
             except InvalidRecurrenceExpression as e:
-                print(e.message)
+                _output_error("invalid_recurrence", e.message)
                 error_occurred = True
             except ValueError as e:
-                print(f"Error: {e}")
+                _output_error("value_error", f"Error: {e}")
                 error_occurred = True
             except requests.RequestException as e:
-                print(f"Network error: {e}")
+                _output_error("network_error", f"Network error: {e}")
                 error_occurred = True
             finally:
                 sys.stdout.flush()

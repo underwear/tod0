@@ -569,18 +569,21 @@ def complete_checklist_item(
     step_name: Union[str, int] = None,
     list_id: str = None,
     task_id: str = None,
+    step_id: str = None,
 ):
     _require_list(list_name, list_id)
     _require_task(task_name, task_id)
-    _require_step(step_name)
+    if step_id is None:
+        _require_step(step_name)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
     if task_id is None:
         task_id = get_task_id_by_name(list_name, task_name)
-    step_id = get_step_id(
-        list_name, task_name, step_name, list_id=list_id, task_id=task_id
-    )
+    if step_id is None:
+        step_id = get_step_id(
+            list_name, task_name, step_name, list_id=list_id, task_id=task_id
+        )
 
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/checklistItems/{step_id}"
     request_body = {"isChecked": True}
@@ -598,19 +601,22 @@ def uncomplete_checklist_item(
     step_name: Union[str, int] = None,
     list_id: str = None,
     task_id: str = None,
+    step_id: str = None,
 ):
     """Mark a checked step as unchecked."""
     _require_list(list_name, list_id)
     _require_task(task_name, task_id)
-    _require_step(step_name)
+    if step_id is None:
+        _require_step(step_name)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
     if task_id is None:
         task_id = get_task_id_by_name(list_name, task_name)
-    step_id = get_step_id(
-        list_name, task_name, step_name, list_id=list_id, task_id=task_id
-    )
+    if step_id is None:
+        step_id = get_step_id(
+            list_name, task_name, step_name, list_id=list_id, task_id=task_id
+        )
 
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/checklistItems/{step_id}"
     request_body = {"isChecked": False}
@@ -628,18 +634,21 @@ def delete_checklist_item(
     step_name: Union[str, int] = None,
     list_id: str = None,
     task_id: str = None,
+    step_id: str = None,
 ):
     _require_list(list_name, list_id)
     _require_task(task_name, task_id)
-    _require_step(step_name)
+    if step_id is None:
+        _require_step(step_name)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
     if task_id is None:
         task_id = get_task_id_by_name(list_name, task_name)
-    step_id = get_step_id(
-        list_name, task_name, step_name, list_id=list_id, task_id=task_id
-    )
+    if step_id is None:
+        step_id = get_step_id(
+            list_name, task_name, step_name, list_id=list_id, task_id=task_id
+        )
 
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/checklistItems/{step_id}"
     session = get_oauth_session()
