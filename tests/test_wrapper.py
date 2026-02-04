@@ -84,7 +84,9 @@ class TestGetTaskIdByName(unittest.TestCase):
 
     @patch("todocli.graphapi.wrapper.get_tasks")
     @patch("todocli.graphapi.wrapper.get_list_id_by_name")
-    def test_get_task_id_by_name_with_invalid_index(self, mock_get_list_id, mock_get_tasks):
+    def test_get_task_id_by_name_with_invalid_index(
+        self, mock_get_list_id, mock_get_tasks
+    ):
         mock_get_list_id.return_value = "list-id-123"
         mock_get_tasks.return_value = []
 
@@ -168,9 +170,9 @@ class TestGetChecklistItemsBatch(unittest.TestCase):
             resp = MagicMock()
             resp.ok = True
             chunk_ids = [r["id"] for r in json["requests"]]
-            resp.content = __import__("json").dumps(
-                make_batch_response(chunk_ids)
-            ).encode()
+            resp.content = (
+                __import__("json").dumps(make_batch_response(chunk_ids)).encode()
+            )
             call_count[0] += 1
             return resp
 

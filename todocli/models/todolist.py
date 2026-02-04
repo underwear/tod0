@@ -15,3 +15,13 @@ class TodoList:
         self.well_known_list_name = TodoList.WellKnownListName(
             query_result_list["wellknownListName"]
         )
+
+    def to_dict(self):
+        """Convert list to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "display_name": self.display_name,
+            "is_owner": self.is_owner,
+            "is_shared": self.is_shared,
+            "well_known_list_name": self.well_known_list_name.value,
+        }

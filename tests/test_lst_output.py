@@ -18,11 +18,22 @@ def _make_task(title, importance="normal", due_datetime=None, task_id="tid-0"):
     return task
 
 
-def _make_args(list_name="Tasks", no_steps=False):
+def _make_args(
+    list_name="Tasks",
+    no_steps=False,
+    json=False,
+    due_today=False,
+    overdue=False,
+    important=False,
+):
     args = MagicMock()
     args.list_name = list_name
     args.no_steps = no_steps
     args.date_format = "eu"
+    args.json = json
+    args.due_today = due_today
+    args.overdue = overdue
+    args.important = important
     return args
 
 
@@ -86,7 +97,9 @@ class TestLstOutput(unittest.TestCase):
     @patch("todocli.cli.wrapper")
     def test_lst_shows_steps_by_default(self, mock_wrapper):
         dt = datetime(2026, 3, 1, 7, 0, 0)
-        task = _make_task("Task with steps", importance="high", due_datetime=dt, task_id="t1")
+        task = _make_task(
+            "Task with steps", importance="high", due_datetime=dt, task_id="t1"
+        )
         mock_wrapper.get_list_id_by_name.return_value = "lid"
         mock_wrapper.get_tasks.return_value = [task]
 

@@ -70,10 +70,14 @@ def get_lists():
 
 
 def create_list(title: str):
+    """Create a new list. Returns (list_id, list_name)."""
     request_body = {"displayName": title}
     session = get_oauth_session()
     response = session.post(BASE_URL, json=request_body)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return data.get("id", ""), data.get("displayName", "")
+    response.raise_for_status()
 
 
 # TODO No associated command
@@ -85,7 +89,22 @@ def rename_list(old_title: str, new_title: str):
     return True if response.ok else response.raise_for_status()
 
 
-def get_tasks(list_name: str = None, list_id: str = None, num_tasks: int = 100):
+def get_tasks(
+    list_name: str = None,
+    list_id: str = None,
+    num_tasks: int = 100,
+    include_completed: bool = False,
+    only_completed: bool = False,
+):
+    """Fetch tasks from a list.
+
+    Args:
+        list_name: Name of the list
+        list_id: ID of the list (alternative to list_name)
+        num_tasks: Maximum number of tasks to return
+        include_completed: If True, include completed tasks
+        only_completed: If True, return only completed tasks
+    """
     assert (list_name is not None) or (
         list_id is not None
     ), "You must provide list_name or list_id"
@@ -94,9 +113,17 @@ def get_tasks(list_name: str = None, list_id: str = None, num_tasks: int = 100):
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
 
-    endpoint = (
-        f"{BASE_URL}/{list_id}/tasks?$filter=status ne 'completed'&$top={num_tasks}"
-    )
+    if only_completed:
+        endpoint = (
+            f"{BASE_URL}/{list_id}/tasks?$filter=status eq 'completed'&$top={num_tasks}"
+        )
+    elif include_completed:
+        endpoint = f"{BASE_URL}/{list_id}/tasks?$top={num_tasks}"
+    else:
+        endpoint = (
+            f"{BASE_URL}/{list_id}/tasks?$filter=status ne 'completed'&$top={num_tasks}"
+        )
+
     session = get_oauth_session()
     response = session.get(endpoint)
     response_value = parse_response(response)
@@ -146,6 +173,7 @@ def complete_task(
     list_id: str = None,
     task_id: str = None,
 ):
+    """Mark a task as completed. Returns (task_id, task_title)."""
     assert (list_name is not None) or (
         list_id is not None
     ), "You must provide list_name or list_id"
@@ -166,7 +194,42 @@ def complete_task(
     }
     session = get_oauth_session()
     response = session.patch(endpoint, json=request_body)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return task_id, data.get("title", "")
+    response.raise_for_status()
+
+
+def uncomplete_task(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Mark a completed task as not completed. Returns (task_id, task_title)."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
+    request_body = {
+        "status": TaskStatus.NOT_STARTED,
+        "completedDateTime": None,
+    }
+    session = get_oauth_session()
+    response = session.patch(endpoint, json=request_body)
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return task_id, data.get("title", "")
+    response.raise_for_status()
 
 
 def complete_tasks(list_id, task_ids=None):
@@ -191,26 +254,56 @@ def complete_tasks(list_id, task_ids=None):
     return True if response.ok else response.raise_for_status()
 
 
-def remove_task(list_name: str, task_name: Union[str, int]):
-    list_id = get_list_id_by_name(list_name)
-    task_id = get_task_id_by_name(list_name, task_name)
+def remove_task(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Delete a task. Returns task_id."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
     session = get_oauth_session()
     response = session.delete(endpoint)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        return task_id
+    response.raise_for_status()
 
 
 def update_task(
-    list_name: str,
-    task_name: Union[str, int],
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
     title: str | None = None,
     due_datetime: datetime | None = None,
     reminder_datetime: datetime | None = None,
     important: bool | None = None,
     recurrence: dict | None = None,
 ):
-    list_id = get_list_id_by_name(list_name)
-    task_id = get_task_id_by_name(list_name, task_name)
+    """Update a task. Returns (task_id, task_title)."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
 
     request_body = {}
     if title is not None:
@@ -232,11 +325,16 @@ def update_task(
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
     session = get_oauth_session()
     response = session.patch(endpoint, json=request_body)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return task_id, data.get("title", "")
+    response.raise_for_status()
 
 
-def get_list_id_by_name(list_name):
-    endpoint = f"{BASE_URL}?$filter=startswith(displayName,'{list_name}')"
+def get_list_id_by_name(list_name: str) -> str:
+    """Get list ID by exact name match."""
+    escaped_name = _escape_odata_string(list_name)
+    endpoint = f"{BASE_URL}?$filter=displayName eq '{escaped_name}'"
     session = get_oauth_session()
     response = session.get(endpoint)
     response_value = parse_response(response)
@@ -294,9 +392,34 @@ def get_task_id_by_name(list_name: str, task_name: str):
         except IndexError:
             raise TaskNotFoundByIndex(task_name, list_name)
     else:
-        raise TypeError(
-            f"task_name must be str or int, got {type(task_name).__name__}"
-        )
+        raise TypeError(f"task_name must be str or int, got {type(task_name).__name__}")
+
+
+def get_task(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Fetch a single task with all details."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
+    session = get_oauth_session()
+    response = session.get(endpoint)
+    if response.ok:
+        return Task(json.loads(response.content.decode()))
+    response.raise_for_status()
 
 
 def get_checklist_items(
@@ -390,14 +513,31 @@ def create_checklist_item(
     request_body = {"displayName": step_name}
     session = get_oauth_session()
     response = session.post(endpoint, json=request_body)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return data.get("id", ""), data.get("displayName", "")
+    response.raise_for_status()
 
 
 def complete_checklist_item(
-    list_name: str, task_name: Union[str, int], step_name: Union[str, int]
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    step_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
 ):
-    list_id = get_list_id_by_name(list_name)
-    task_id = get_task_id_by_name(list_name, task_name)
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+    assert step_name is not None, "You must provide step_name"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
     step_id = get_step_id(
         list_name, task_name, step_name, list_id=list_id, task_id=task_id
     )
@@ -406,14 +546,65 @@ def complete_checklist_item(
     request_body = {"isChecked": True}
     session = get_oauth_session()
     response = session.patch(endpoint, json=request_body)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return step_id, data.get("displayName", "")
+    response.raise_for_status()
+
+
+def uncomplete_checklist_item(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    step_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Mark a checked step as unchecked."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+    assert step_name is not None, "You must provide step_name"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+    step_id = get_step_id(
+        list_name, task_name, step_name, list_id=list_id, task_id=task_id
+    )
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/checklistItems/{step_id}"
+    request_body = {"isChecked": False}
+    session = get_oauth_session()
+    response = session.patch(endpoint, json=request_body)
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return step_id, data.get("displayName", "")
+    response.raise_for_status()
 
 
 def delete_checklist_item(
-    list_name: str, task_name: Union[str, int], step_name: Union[str, int]
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    step_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
 ):
-    list_id = get_list_id_by_name(list_name)
-    task_id = get_task_id_by_name(list_name, task_name)
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+    assert step_name is not None, "You must provide step_name"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
     step_id = get_step_id(
         list_name, task_name, step_name, list_id=list_id, task_id=task_id
     )
@@ -421,7 +612,9 @@ def delete_checklist_item(
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/checklistItems/{step_id}"
     session = get_oauth_session()
     response = session.delete(endpoint)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        return step_id
+    response.raise_for_status()
 
 
 def get_step_id(
@@ -449,6 +642,4 @@ def get_step_id(
                 return item.id
         raise StepNotFoundByName(step_name, task_name)
     else:
-        raise TypeError(
-            f"step_name must be str or int, got {type(step_name).__name__}"
-        )
+        raise TypeError(f"step_name must be str or int, got {type(step_name).__name__}")

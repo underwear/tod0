@@ -76,3 +76,30 @@ class Task:
             )
         else:
             self.body_last_modified_datetime = None
+
+    def to_dict(self):
+        """Convert task to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "status": self.status.value,
+            "importance": self.importance.value,
+            "is_reminder_on": self.is_reminder_on,
+            "created_datetime": (
+                self.created_datetime.isoformat() if self.created_datetime else None
+            ),
+            "due_datetime": (
+                self.due_datetime.isoformat() if self.due_datetime else None
+            ),
+            "reminder_datetime": (
+                self.reminder_datetime.isoformat() if self.reminder_datetime else None
+            ),
+            "completed_datetime": (
+                self.completed_datetime.isoformat() if self.completed_datetime else None
+            ),
+            "last_modified_datetime": (
+                self.last_modified_datetime.isoformat()
+                if self.last_modified_datetime
+                else None
+            ),
+        }

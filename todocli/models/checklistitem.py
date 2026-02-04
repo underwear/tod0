@@ -43,3 +43,17 @@ class ChecklistItem:
             self.checked_datetime = _parse_datetime(query_result["checkedDateTime"])
         else:
             self.checked_datetime = None
+
+    def to_dict(self):
+        """Convert checklist item to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "display_name": self.display_name,
+            "is_checked": self.is_checked,
+            "created_datetime": (
+                self.created_datetime.isoformat() if self.created_datetime else None
+            ),
+            "checked_datetime": (
+                self.checked_datetime.isoformat() if self.checked_datetime else None
+            ),
+        }

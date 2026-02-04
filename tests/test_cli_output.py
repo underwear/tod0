@@ -5,7 +5,16 @@ import unittest
 from unittest.mock import patch, MagicMock
 from io import StringIO
 
-from todocli.cli import new, newl, complete, rm, update, new_step, complete_step, rm_step
+from todocli.cli import (
+    new,
+    newl,
+    complete,
+    rm,
+    update,
+    new_step,
+    complete_step,
+    rm_step,
+)
 
 
 def _make_args(**kwargs):
@@ -13,18 +22,26 @@ def _make_args(**kwargs):
     for k, v in kwargs.items():
         setattr(args, k, v)
     # Defaults for optional flags
-    if not hasattr(args, "list") or "list" not in kwargs:
+    if "list" not in kwargs:
         args.list = None
-    if not hasattr(args, "reminder") or "reminder" not in kwargs:
+    if "reminder" not in kwargs:
         args.reminder = None
-    if not hasattr(args, "due") or "due" not in kwargs:
+    if "due" not in kwargs:
         args.due = None
-    if not hasattr(args, "important") or "important" not in kwargs:
+    if "important" not in kwargs:
         args.important = False
-    if not hasattr(args, "recurrence") or "recurrence" not in kwargs:
+    if "recurrence" not in kwargs:
         args.recurrence = None
-    if not hasattr(args, "title") or "title" not in kwargs:
+    if "title" not in kwargs:
         args.title = None
+    if "task_names" not in kwargs:
+        args.task_names = None
+    if "yes" not in kwargs:
+        args.yes = False
+    if "json" not in kwargs:
+        args.json = False
+    if "task_id" not in kwargs:
+        args.task_id = None
     return args
 
 
@@ -44,7 +61,7 @@ class TestConfirmationOutput(unittest.TestCase):
     def test_new_with_steps_prints_confirmation(self, mock_wrapper):
         mock_wrapper.create_task.return_value = "task-id-123"
         mock_wrapper.get_list_id_by_name.return_value = "list-id"
-        mock_wrapper.create_checklist_item.return_value = True
+        mock_wrapper.create_checklist_item.return_value = ("step-id-123", "step name")
         args = _make_args(task_name="buy groceries", step=["milk", "eggs"])
 
         with patch("sys.stdout", new_callable=StringIO) as out:
@@ -59,7 +76,7 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_newl_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.create_list.return_value = True
+        mock_wrapper.create_list.return_value = ("list-id-123", "Shopping")
         args = _make_args(list_name="Shopping")
 
         with patch("sys.stdout", new_callable=StringIO) as out:
@@ -69,7 +86,7 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_complete_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.complete_task.return_value = True
+        mock_wrapper.complete_task.return_value = ("task-id-123", "buy milk")
         args = _make_args(task_name="Tasks/buy milk")
 
         with patch("sys.stdout", new_callable=StringIO) as out:
@@ -78,8 +95,8 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_rm_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.remove_task.return_value = True
-        args = _make_args(task_name="Tasks/buy milk")
+        mock_wrapper.remove_task.return_value = "task-id-123"
+        args = _make_args(task_name="Tasks/buy milk", yes=True)
 
         with patch("sys.stdout", new_callable=StringIO) as out:
             rm(args)
@@ -87,7 +104,7 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_update_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.update_task.return_value = True
+        mock_wrapper.update_task.return_value = ("task-id-123", "new name")
         args = _make_args(task_name="Tasks/buy milk", title="new name")
 
         with patch("sys.stdout", new_callable=StringIO) as out:
@@ -96,7 +113,7 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_new_step_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.create_checklist_item.return_value = True
+        mock_wrapper.create_checklist_item.return_value = ("step-id-123", "get eggs")
         args = _make_args(task_name="Tasks/buy milk", step_name="get eggs")
 
         with patch("sys.stdout", new_callable=StringIO) as out:
@@ -106,7 +123,7 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_complete_step_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.complete_checklist_item.return_value = True
+        mock_wrapper.complete_checklist_item.return_value = ("step-id-123", "get eggs")
         args = _make_args(task_name="Tasks/buy milk", step_name="get eggs")
 
         with patch("sys.stdout", new_callable=StringIO) as out:
@@ -115,7 +132,7 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_rm_step_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.delete_checklist_item.return_value = True
+        mock_wrapper.delete_checklist_item.return_value = "step-id-123"
         args = _make_args(task_name="Tasks/buy milk", step_name="get eggs")
 
         with patch("sys.stdout", new_callable=StringIO) as out:

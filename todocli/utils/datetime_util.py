@@ -105,11 +105,12 @@ def parse_datetime(datetime_str: str):
             split_str = datetime_str.split(" ")
             hour, minute = parse_hour_minute(split_str[0])
 
-            if split_str[1] == "am":
+            if split_str[1].lower() == "am":
                 if hour == 12:
                     hour = 0
             else:
-                hour = hour + 12
+                if hour != 12:
+                    hour = hour + 12
 
             return add_day_if_past(
                 datetime.now().replace(
@@ -240,24 +241,41 @@ def datetime_to_api_timestamp(dt: datetime | None):
 
 
 def api_timestamp_to_datetime(api_dt: Union[str, dict]):
-    """Converts the datetime string returned by the API to python datetime object"""
+    """Converts the datetime string returned by the API to python datetime object.
 
+    Handles various timestamp formats from Microsoft Graph API:
+    - With 7-digit microseconds: "2024-01-25T10:00:00.0000000Z"
+    - Without microseconds: "2024-01-25T10:00:00Z"
+    - Dict format: {"dateTime": "...", "timeZone": "UTC"}
     """
-    Somehow this string is formatted with 7 digits for 'microsecond' resolution, so crop the last digit (and trailing Z)
-    The cropped string will be written into api_dt_str_mod
-    """
-    api_dt_str_mod = None
+    if api_dt is None:
+        return None
 
+    # Extract the datetime string
     if isinstance(api_dt, str):
-        api_dt_str_mod = api_dt[:-2]
+        dt_str = api_dt
     elif isinstance(api_dt, dict):
-        api_dt_str_mod = api_dt["dateTime"][:-2]
+        dt_str = api_dt.get("dateTime", "")
     else:
-        raise
+        raise TypeError(f"Expected str or dict, got {type(api_dt).__name__}")
 
-    dt = datetime.strptime(api_dt_str_mod, "%Y-%m-%dT%H:%M:%S.%f")
-    dt = utc_to_local(dt)
-    return dt
+    # Strip trailing Z
+    dt_str = dt_str.rstrip("Z")
+
+    # Truncate fractional seconds to 6 digits (Python's %f limit)
+    if "." in dt_str:
+        base, frac = dt_str.rsplit(".", 1)
+        dt_str = f"{base}.{frac[:6]}"
+
+    # Try parsing with and without fractional seconds
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            dt = datetime.strptime(dt_str, fmt)
+            return utc_to_local(dt)
+        except ValueError:
+            continue
+
+    raise ValueError(f"Unable to parse datetime: {api_dt}")
 
 
 def utc_to_local(_dt):

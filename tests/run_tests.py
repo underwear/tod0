@@ -18,7 +18,6 @@ if __name__ == "__main__":
 
     # Add each unit test explicitly (excludes test_cli_url_integration.py)
     suite.addTests(loader.loadTestsFromName("tests.test_datetime_parser"))
-    suite.addTests(loader.loadTestsFromName("tests.test_task_names_with_slashes"))
     suite.addTests(loader.loadTestsFromName("tests.test_cli_commands"))
     suite.addTests(loader.loadTestsFromName("tests.test_models"))
     suite.addTests(loader.loadTestsFromName("tests.test_wrapper"))
@@ -29,6 +28,9 @@ if __name__ == "__main__":
     suite.addTests(loader.loadTestsFromName("tests.test_update_command"))
     suite.addTests(loader.loadTestsFromName("tests.test_lst_output"))
     suite.addTests(loader.loadTestsFromName("tests.test_cli_output"))
+    suite.addTests(loader.loadTestsFromName("tests.test_json_output"))
+    suite.addTests(loader.loadTestsFromName("tests.test_filters"))
+    suite.addTests(loader.loadTestsFromName("tests.test_recurrence"))
 
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

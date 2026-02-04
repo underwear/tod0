@@ -1,147 +1,194 @@
-microsoft-todo-cli
-==================
+# todo
 
-A CLI client for Microsoft To-Do.
+> Fast, minimal command-line client for Microsoft To-Do
 
-[![CircleCI](https://circleci.com/gh/underwear/microsoft-todo-cli.svg?style=svg)](https://circleci.com/gh/underwear/microsoft-todo-cli)
-<a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
+[![CircleCI](https://circleci.com/gh/underwear/microsoft-todo-cli.svg?style=shield)](https://circleci.com/gh/underwear/microsoft-todo-cli)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`todocli` lets you use [Microsoft To Do](https://todo.microsoft.com/) from the command line.
+```
+$ todo tasks
+[0]  Buy groceries
+[1]  Call mom                     ! (due: tomorrow)
+[2]  Review PR #42
+     [x] Check tests
+     [ ] Add documentation
 
-Installation
-------------
+$ todo new "Deploy v2.0" -d friday -r 9am -I
+Created task 'Deploy v2.0' in 'Tasks'
 
-***Remember to [register for an API key](https://github.com/underwear/microsoft-todo-cli/tree/main/GET_KEY.md) before using `todocli`***
-
-### Install from PyPI
-
-```sh
-pip install tod0
+$ todo complete 0
+Completed task 'Buy groceries' in 'Tasks'
 ```
 
-### Install from source
+## Why todo?
 
-```sh
+| | |
+|---|---|
+| **Natural dates** | `tomorrow`, `1h30m`, `9:30am`, `friday`, `weekly:mon,wed,fri` |
+| **Scriptable** | JSON output, stable task IDs, proper exit codes |
+| **Fast** | No interactive UI, minimal dependencies, instant results |
+| **Complete** | Tasks, lists, subtasks, recurrence, reminders, filters |
+
+## Install
+
+**Requirements:** Python 3.8+
+
+```bash
+pip install microsoft-todo-cli
+```
+
+Or install from source:
+
+```bash
 git clone https://github.com/underwear/microsoft-todo-cli.git
 cd microsoft-todo-cli
-python setup.py install
+pip install -e .
 ```
 
+Then configure Microsoft API access: **[Setup Guide](docs/setup-api.md)** (5 min)
 
-Commands
---------
-Run `todocli` from anywhere on your terminal.
-Usage:
+## Quick Start
 
-    NAME
-        todocli - Command line client for Microsoft ToDo 
-        
-    SYNOPSIS
-        todocli [options] COMMAND ...  
-        
-        'COMMAND' can be one of the following values:
-            ls                  Display all lists  
-            
-            lst <list_name> [-s] Display all tasks from list
-                list_name       Name of the list
-                -s, --steps     Also display checklist items (steps) for each task
-                
-            new <task> [-r time]
-                                Create a new task
-                task            Task to create. See 'Specifying a task' for details.
-                -r time         Set a reminder. See 'Specifying time' for details.              
-            
-            newl <list_name>    Create a new list
-                list_name       Name of the list
-                
-            complete <task>     Set task status to completed
-                task            Task to complete. See 'Specifying a task' for details.
-               
-            rm <task>           Remove a task
-                task            Task to remove. See 'Specifying a task' for details.
+```bash
+todo lists                        # Show all lists
+todo tasks                        # Show tasks (default list)
+todo new "Buy milk"               # Create task
+todo complete "Buy milk"          # Mark done
+todo rm "Old task"                # Delete
+```
 
-            new-step <task> <step>
-                                Add a step (checklist item) to a task
-                task            Task to add step to. See 'Specifying a task' for details.
-                step            Description of the step to create.
+## Usage
 
-            list-steps <task>   Display steps (checklist items) of a task
-                task            Task to display steps for. See 'Specifying a task' for details.
+### Tasks
 
-            complete-step <task> <step>
-                                Mark a step as checked
-                task            Task containing the step. See 'Specifying a task' for details.
-                step            Step to complete (name or index number).
+```bash
+# View
+todo tasks                        # Default list
+todo tasks Work                   # Specific list
+todo tasks --due-today            # Due today
+todo tasks --overdue              # Past due
+todo tasks --important            # High priority
+todo tasks --completed            # Done tasks
+todo tasks --all                  # Everything
 
-            rm-step <task> <step>
-                                Remove a step from a task
-                task            Task containing the step. See 'Specifying a task' for details.
-                step            Step to remove (name or index number).
-                   
-    OPTIONS
-        -h, --help
-            Display a usage message.
-        
-        -i, --interactive
-            Interactive mode. 
-            Don't exit after invoking a command, but ask for follow up commands instead.
-        
-        -n, --display_linenums
-            Display a line number for all lines which are output.
-            
-    Specifying a task:
-        For commands which take 'task' as a parameter, 'task' can be one of the following:
-        
-        task_name
-        list_name/task_name
-        task_number
-        list_name/task_number
-        
-        If 'list_name' is omitted, the default task list will be used. 
-        'task_number' is the position displayed when specifying option '-n'. 
-       
-    Specifying time:
-        For options which take 'time' as a parameter, 'time' can be one of the following:
-        
-        {days}d{hours}h{minutes}m{seconds}s
-            Current time + specified time delta. 
-            e.g. 1h, 12h, 1h30m
-            
-        morning
-            Today at 07:00 AM if current time < 07:00 AM, otherwise tomorrow
+# Create
+todo new "Task name"              # Basic
+todo new "Task" -l Work           # In specific list
+todo new "Task" -d tomorrow       # With due date
+todo new "Task" -r 2h             # With reminder (in 2 hours)
+todo new "Task" -d mon -r 9am     # Due Monday, remind at 9am
+todo new "Task" -I                # Important
+todo new "Task" -R daily          # Recurring
+todo new "Task" -R weekly:mon,fri # Recurring on specific days
+todo new "Task" -S "Step 1" -S "Step 2"  # With subtasks
 
-        tomorrow
-            Tomorrow at 07:00 AM
-            
-        evening
-            Today at 06:00 PM if current time < 06:00 PM, otherwise tomorrow
-            
-        {hour}:{minute}
-            Today at {hour}:{minute} if current time < {hour}:{minute}, otherwise tomorrow 
-            e.g. 9:30, 09:30, 17:15
-            
-        {hour}:{minute} am|pm 
-            Today at {hour}:{minute} am|pm  if current time < {hour}:{minute} am|pm, otherwise tomorrow
-            e.g. 9:30 am, 12:00 am, 10:15 pm
-            
-        {day}.{month}. {hour}:{minute}
-            The given day at {hour}:{minute}
-            e.g. 24.12. 12:00
-            e.g. 7.4.   9:15
-        
-        {day}.{month}.{year}
-            The given day at 7:00 am
-            e.g. 22.12.2020
-            e.g. 01.01.21
+# Manage
+todo complete "Task"              # Mark complete
+todo complete 0 1 2               # Complete by index (batch)
+todo uncomplete "Task"            # Reopen task
+todo update "Task" --title "New"  # Rename
+todo update "Task" -d friday -I   # Change due date, make important
+todo rm "Task"                    # Delete (asks confirmation)
+todo rm "Task" -y                 # Delete (no confirmation)
+```
 
-        {start_value}/{end_value}/{time_delta}
-            Calculate the finish time according specified start/end values.
-            e.g. 0/100/1m -> 100 minutes
-            e.g. 15/35/17s -> 340 seconds
-    
-Features
---------
-- View folders and tasks
-- Create folders and tasks
-- Mark tasks as complete
-- Manage subtasks (checklist items / steps)
+### Subtasks (Steps)
+
+```bash
+todo new-step "Task" "Step text"      # Add step
+todo list-steps "Task"                # List steps
+todo complete-step "Task" "Step"      # Check off
+todo uncomplete-step "Task" "Step"    # Uncheck
+todo rm-step "Task" 0                 # Remove by index
+```
+
+### Lists
+
+```bash
+todo lists                        # Show all lists
+todo new-list "Project X"         # Create list
+```
+
+### Date & Time Formats
+
+| Type | Examples |
+|------|----------|
+| Relative | `1h`, `30m`, `2d`, `1h30m` |
+| Time | `9:30`, `9am`, `17:00`, `5:30pm` |
+| Days | `tomorrow`, `monday`, `fri` |
+| Date | `2026-12-31`, `31.12.2026`, `12/31/2026` |
+| Keywords | `morning` (7:00), `evening` (18:00) |
+
+### Recurrence Patterns
+
+| Pattern | Description |
+|---------|-------------|
+| `daily` | Every day |
+| `weekly` | Every week |
+| `monthly` | Every month |
+| `yearly` | Every year |
+| `weekdays` | Monday to Friday |
+| `weekly:mon,wed,fri` | Specific days |
+| `every 2 days` | Custom interval |
+| `every 3 weeks` | Custom interval |
+
+## Scripting & Automation
+
+### JSON Output
+
+Add `--json` to any command for machine-readable output:
+
+```bash
+# Read commands
+todo tasks --json
+todo lists --json
+todo show "Task" --json
+
+# Write commands return IDs
+todo new "Task" --json            # {"action": "created", "id": "AAMk...", ...}
+todo complete "Task" --json       # {"action": "completed", "id": "AAMk...", ...}
+todo rm "Task" -y --json          # {"action": "removed", "id": "AAMk...", ...}
+```
+
+### Task IDs
+
+For reliable scripting, use stable task IDs instead of names or indices:
+
+```bash
+# Get task ID from JSON
+todo tasks --json | jq '.[0].id'
+
+# Show IDs inline (without full JSON)
+todo tasks --show-id
+
+# Use ID in commands
+todo complete --id "AAMkADU3..." -l Tasks
+todo update --id "AAMkADU3..." --title "New title"
+todo rm --id "AAMkADU3..." -l Tasks -y
+```
+
+### Aliases
+
+| Alias | Command |
+|-------|---------|
+| `t` | `tasks` |
+| `n` | `new` |
+| `c` | `complete` |
+| `d` | `rm` |
+| `newl` | `new-list` |
+
+```bash
+todo t          # = todo tasks
+todo n "Task"   # = todo new "Task"
+todo c 0        # = todo complete 0
+```
+
+## Credits
+
+Forked from [kiblee/tod0](https://github.com/kiblee/tod0) with a redesigned CLI.
+
+## License
+
+MIT

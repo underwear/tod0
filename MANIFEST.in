@@ -1,3 +1,4 @@
-include *.txt
-include *.yaml
-recursive-include docs *.txt
+include README.md
+include LICENSE
+include CHANGES.txt
+recursive-include docs *.md

@@ -1,1 +1,10 @@
-v<version>, <date> -- Initial release.
+v1.0.0, 2026-02-04
+  - Fork from kiblee/tod0 with redesigned CLI
+  - Removed interactive TUI, CLI-only
+  - Added JSON output for all commands (--json flag)
+  - Added --id flag for stable task identification
+  - Added filters: --all, --completed, --due-today, --overdue, --important
+  - Added uncomplete/uncomplete-step commands
+  - Added inline step creation with -S flag
+  - Renamed commands: lists (was ls), tasks (was lst), new-list (was newl)
+  - Added command aliases: t, n, c, d

@@ -47,6 +47,15 @@ class TestDatetimeParser(unittest.TestCase):
         dt_expected = add_day_if_past(dt_expected)
         self.assertEqual(dt, dt_expected)
 
+    def test_am_pm_time_12pm(self):
+        """Test that 12:00 pm correctly parses to noon (hour=12), not hour=24."""
+        input_str = "12:00 pm"
+        dt = parse_datetime(input_str)
+        dt_expected = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
+        dt_expected = add_day_if_past(dt_expected)
+        self.assertEqual(dt, dt_expected)
+        self.assertEqual(dt.hour, 12)
+
     @patch.object(todocli.utils.datetime_util, "datetime", Mock(wraps=datetime))
     def test_time_strings(self):
         # (user input, simulated 'now' time, expected output)
@@ -167,6 +176,57 @@ class TestErrorMessage(unittest.TestCase):
             self.assertIn("MM/DD/YYYY", e.message)
         else:
             self.fail("TimeExpressionNotRecognized not raised")
+
+
+class TestApiTimestampParsing(unittest.TestCase):
+    """Test api_timestamp_to_datetime handles various API timestamp formats."""
+
+    def test_timestamp_with_7_digit_microseconds(self):
+        """Test parsing timestamp with 7-digit microseconds (standard Graph API)."""
+        from todocli.utils.datetime_util import api_timestamp_to_datetime
+
+        result = api_timestamp_to_datetime("2024-01-25T10:30:45.1234567Z")
+        self.assertEqual(result.year, 2024)
+        self.assertEqual(result.month, 1)
+        self.assertEqual(result.day, 25)
+        # Note: hour is adjusted for local timezone, so we check minute/second
+        self.assertEqual(result.minute, 30)
+        self.assertEqual(result.second, 45)
+        self.assertEqual(result.microsecond, 123456)  # Truncated to 6 digits
+
+    def test_timestamp_without_microseconds(self):
+        """Test parsing timestamp without microseconds."""
+        from todocli.utils.datetime_util import api_timestamp_to_datetime
+
+        result = api_timestamp_to_datetime("2024-01-25T10:30:45Z")
+        self.assertEqual(result.year, 2024)
+        self.assertEqual(result.month, 1)
+        self.assertEqual(result.day, 25)
+
+    def test_timestamp_dict_format(self):
+        """Test parsing timestamp from dict format."""
+        from todocli.utils.datetime_util import api_timestamp_to_datetime
+
+        result = api_timestamp_to_datetime(
+            {"dateTime": "2024-01-25T10:30:45.0000000Z", "timeZone": "UTC"}
+        )
+        self.assertEqual(result.year, 2024)
+        self.assertEqual(result.month, 1)
+        self.assertEqual(result.day, 25)
+
+    def test_timestamp_none_returns_none(self):
+        """Test that None input returns None."""
+        from todocli.utils.datetime_util import api_timestamp_to_datetime
+
+        result = api_timestamp_to_datetime(None)
+        self.assertIsNone(result)
+
+    def test_timestamp_invalid_type_raises_error(self):
+        """Test that invalid type raises TypeError."""
+        from todocli.utils.datetime_util import api_timestamp_to_datetime
+
+        with self.assertRaises(TypeError):
+            api_timestamp_to_datetime(12345)
 
 
 if __name__ == "__main__":
