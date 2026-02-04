@@ -8,7 +8,6 @@ Prerequisites:
 - Network connection
 
 Note: This test creates a 'test-list' and adds tasks to it.
-      Run 'tod0' after the test to manually verify the changes.
 """
 
 import sys
@@ -119,10 +118,8 @@ def test_url_in_task_name():
     print("  ✓ Completing URL tasks")
     print("  ✓ Removing URL tasks")
     print("\nTo verify manually:")
-    print("  1. Run 'tod0' to see the 'test-list' in the TUI")
+    print("  1. Run 'todocli lst test-list' to see tasks")
     print("  2. Check Microsoft To-Do web/app")
-    print("  3. Note: One task was completed (filtered from active view)")
-    print("  4. One task was deleted")
 
 
 if __name__ == "__main__":

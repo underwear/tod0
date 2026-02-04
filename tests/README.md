@@ -1,6 +1,6 @@
 # Tests
 
-This directory contains unit and integration tests for the tod0 project.
+This directory contains unit and integration tests for todocli.
 
 ## Test Files
 

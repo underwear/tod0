@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test runner for tod0 project.
+Test runner for todocli.
 Runs all unit tests that don't require API credentials.
 """
 

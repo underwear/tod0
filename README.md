@@ -1,21 +1,17 @@
-tod0
-====
+microsoft-todo-cli
+==================
 
-A Terminal Client for Microsoft To-Do.
+A CLI client for Microsoft To-Do.
 
 [![CircleCI](https://circleci.com/gh/underwear/microsoft-todo-cli.svg?style=svg)](https://circleci.com/gh/underwear/microsoft-todo-cli)
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 
-#### Microsoft To Do Command Line Interface
-
-`tod0` lets you use [Microsoft To Do](https://todo.microsoft.com/) from the command line. 
-
-<p align="center"><img src="/demo-min.gif?raw=true"/></p>
+`todocli` lets you use [Microsoft To Do](https://todo.microsoft.com/) from the command line.
 
 Installation
 ------------
 
-***Remember to [register for an API key](https://github.com/underwear/microsoft-todo-cli/tree/main/GET_KEY.md) before using `tod0`***
+***Remember to [register for an API key](https://github.com/underwear/microsoft-todo-cli/tree/main/GET_KEY.md) before using `todocli`***
 
 ### Install from PyPI
 
@@ -34,19 +30,7 @@ python setup.py install
 
 Commands
 --------
-For the UI client, run `tod0` from anywhere on your terminal.
-
-    j       Move selection down
-    k       Move selection up
-    l       Select folder and view tasks
-    h       Go back to folder
-    
-    n       Create task/folder
-    c       Mark task as complete
-
-    ?       Display help
-    
-For the CLI client, run `todocli` from anywhere on your terminal.
+Run `todocli` from anywhere on your terminal.
 Usage:
 
     NAME
