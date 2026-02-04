@@ -25,6 +25,7 @@ if __name__ == "__main__":
     suite.addTests(loader.loadTestsFromName("tests.test_checklist_item_model"))
     suite.addTests(loader.loadTestsFromName("tests.test_checklist_wrapper"))
     suite.addTests(loader.loadTestsFromName("tests.test_checklist_cli"))
+    suite.addTests(loader.loadTestsFromName("tests.test_odata_escape"))
 
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
