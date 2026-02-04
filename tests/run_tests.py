@@ -28,6 +28,7 @@ if __name__ == "__main__":
     suite.addTests(loader.loadTestsFromName("tests.test_odata_escape"))
     suite.addTests(loader.loadTestsFromName("tests.test_update_command"))
     suite.addTests(loader.loadTestsFromName("tests.test_lst_output"))
+    suite.addTests(loader.loadTestsFromName("tests.test_cli_output"))
 
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

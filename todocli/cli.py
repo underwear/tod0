@@ -103,10 +103,12 @@ def new(args):
         important=args.important,
         recurrence=recurrence,
     )
+    print(f"Created task '{name}' in '{task_list}'")
 
 
 def newl(args):
     wrapper.create_list(args.list_name)
+    print(f"Created list '{args.list_name}'")
 
 
 def try_parse_as_int(input_str: str):
@@ -119,11 +121,13 @@ def try_parse_as_int(input_str: str):
 def complete(args):
     task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
     wrapper.complete_task(list_name=task_list, task_name=try_parse_as_int(name))
+    print(f"Completed task '{name}' in '{task_list}'")
 
 
 def rm(args):
     task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
     wrapper.remove_task(task_list, try_parse_as_int(name))
+    print(f"Removed task '{name}' from '{task_list}'")
 
 
 def update(args):
@@ -148,6 +152,7 @@ def update(args):
         important=True if args.important else None,
         recurrence=recurrence,
     )
+    print(f"Updated task '{name}' in '{task_list}'")
 
 
 def new_step(args):
@@ -157,6 +162,7 @@ def new_step(args):
         list_name=task_list,
         task_name=try_parse_as_int(task_name),
     )
+    print(f"Added step '{args.step_name}' to '{task_name}' in '{task_list}'")
 
 
 def list_steps(args):
@@ -177,6 +183,7 @@ def complete_step(args):
         task_name=try_parse_as_int(task_name),
         step_name=try_parse_as_int(args.step_name),
     )
+    print(f"Completed step '{args.step_name}' in '{task_name}'")
 
 
 def rm_step(args):
@@ -186,6 +193,7 @@ def rm_step(args):
         task_name=try_parse_as_int(task_name),
         step_name=try_parse_as_int(args.step_name),
     )
+    print(f"Removed step '{args.step_name}' from '{task_name}'")
 
 
 helptext_task_name = """
