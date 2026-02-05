@@ -21,6 +21,23 @@ $ todo complete 0
 Completed task 'Buy groceries' in 'Tasks'
 ```
 
+## Table of Contents
+
+- [Install](#install)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+  - [Tasks](#tasks)
+  - [Subtasks (Steps)](#subtasks-steps)
+  - [Lists](#lists)
+  - [Date & Time Formats](#date--time-formats)
+  - [Recurrence Patterns](#recurrence-patterns)
+- [Scripting & Automation](#scripting--automation)
+  - [JSON Output](#json-output)
+  - [Task Identification](#task-identification)
+  - [Exit Codes](#exit-codes)
+  - [Tips for Scripts and Agents](#tips-for-scripts-and-agents)
+- [Aliases](#aliases)
+
 ## Install
 
 **Requirements:** Python 3.10+
@@ -43,11 +60,16 @@ Then configure Microsoft API access: **[Setup Guide](docs/setup-api.md)** (5 min
 
 ```bash
 todo lists                        # Show all lists
-todo tasks                        # Show tasks (default list)
+todo tasks                        # Show tasks from default list
+todo tasks Work                   # Show tasks from "Work" list
 todo new "Buy milk"               # Create task
-todo complete "Buy milk"          # Mark done
+todo complete "Buy milk"          # Mark done (or: todo c "Buy milk")
 todo rm "Old task"                # Delete
 ```
+
+**Default list**: The first list returned by Microsoft To-Do API (usually "Tasks"). Specify a list explicitly with `-l ListName` or as a positional argument.
+
+**Short aliases**: `t` (tasks), `n` (new), `c` (complete), `d` (rm) — see [Aliases](#aliases).
 
 ## Usage
 
@@ -73,6 +95,10 @@ todo new "Task" -I                # Important
 todo new "Task" -R daily          # Recurring
 todo new "Task" -R weekly:mon,fri # Recurring on specific days
 todo new "Task" -S "Step 1" -S "Step 2"  # With subtasks
+
+# View single task
+todo show "Task"                  # Show task details
+todo show 0                       # Show by index
 
 # Manage
 todo complete "Task"              # Mark complete
@@ -134,55 +160,110 @@ todo rm-list "Project X" -y       # Delete list (no confirmation)
 Add `--json` to any command for machine-readable output:
 
 ```bash
-# Read commands
 todo tasks --json
 todo lists --json
 todo show "Task" --json
-
-# Write commands return IDs
-todo new "Task" --json            # {"action": "created", "id": "AAMk...", ...}
-todo complete "Task" --json       # {"action": "completed", "id": "AAMk...", ...}
-todo rm "Task" -y --json          # {"action": "removed", "id": "AAMk...", ...}
 ```
 
-### Task IDs
+**Example: `todo tasks --json`**
+```json
+{
+  "list": "Tasks",
+  "tasks": [
+    {
+      "id": "AAMkADU3...",
+      "title": "Buy groceries",
+      "status": "notStarted",
+      "importance": "normal",
+      "due_date": null,
+      "reminder": null,
+      "recurrence": null,
+      "steps": []
+    },
+    {
+      "id": "AAMkADU4...",
+      "title": "Call mom",
+      "status": "notStarted",
+      "importance": "high",
+      "due_date": "2026-02-06",
+      "reminder": "2026-02-06T09:00:00",
+      "recurrence": null,
+      "steps": [
+        {"id": "step1", "name": "Check tests", "completed": true},
+        {"id": "step2", "name": "Add documentation", "completed": false}
+      ]
+    }
+  ]
+}
+```
 
-For reliable scripting, use stable task IDs instead of names or indices:
+**Write commands return action confirmation:**
+```bash
+todo new "Task" --json            # {"action": "created", "id": "AAMk...", "title": "Task", "list": "Tasks"}
+todo complete "Task" --json       # {"action": "completed", "id": "AAMk...", "title": "Task", "list": "Tasks"}
+todo rm "Task" -y --json          # {"action": "removed", "id": "AAMk...", "title": "Task", "list": "Tasks"}
+```
+
+### Task Identification
+
+Tasks can be identified by **name**, **index**, or **ID**. Priority for reliable automation:
+
+| Method | Stability | Use case |
+|--------|-----------|----------|
+| `--id "AAMk..."` | Stable | Scripts, automation, agents |
+| Index (`0`, `1`) | Unstable | Interactive use only |
+| Name (`"Task"`) | Unstable | Interactive use, unique names |
 
 ```bash
-# Get task ID from JSON
-todo tasks --json | jq '.tasks[0].id'
+# Get task ID from JSON output
+todo tasks --json | jq -r '.tasks[0].id'
 
-# Show IDs inline (without full JSON)
+# Show IDs inline (human-readable + IDs)
 todo tasks --show-id
 
-# Use ID in commands
+# Use ID in commands (requires -l for list context)
 todo complete --id "AAMkADU3..." -l Tasks
 todo update --id "AAMkADU3..." --title "New title"
 todo rm --id "AAMkADU3..." -l Tasks -y
 ```
 
+**Example: Create and complete a task by ID**
+```bash
+ID=$(todo new "Deploy v2.0" -l Work --json | jq -r '.id')
+# ... later ...
+todo complete --id "$ID" -l Work
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | General error (invalid arguments, task not found, API error) |
+
+With `--json`: stdout contains only valid JSON on success. Errors go to stderr.
+
 ### Tips for Scripts and Agents
 
-- **Duplicate names**: If multiple tasks share the same name, the first match is used. For reliability, use `--id` with the task ID from `--json` output.
-- **Indexes are unstable**: Task indexes (`[0]`, `[1]`, ...) can change between calls as tasks are added, completed, or reordered. Use `--id` for stable references.
-- **JSON output contract**: With `--json`, stdout contains only valid JSON. Errors go to stderr. Exit code 0 means success.
+- **Prefer `--id` over names/indexes**: Names can have duplicates (first match wins). Indexes change as tasks are added/completed/reordered.
+- **Always use `-l ListName`** with `--id` to specify list context.
+- **Capture IDs on creation**: Store the ID from `todo new --json` for later operations.
+- **Use `--json` for parsing**: Human-readable output format may change between versions.
+- **Use `-y` flag** with `rm` commands to skip confirmation prompts.
 
-### Aliases
+## Aliases
 
-| Alias | Command |
-|-------|---------|
-| `t` | `tasks` |
-| `n` | `new` |
-| `c` | `complete` |
-| `d` | `rm` |
-| `newl` | `new-list` |
-| `reopen` | `uncomplete` |
+| Alias | Command | Alias | Command |
+|-------|---------|-------|---------|
+| `t` | `tasks` | `d` | `rm` |
+| `n` | `new` | `newl` | `new-list` |
+| `c` | `complete` | `reopen` | `uncomplete` |
 
 ```bash
-todo t          # = todo tasks
-todo n "Task"   # = todo new "Task"
-todo c 0        # = todo complete 0
+todo t                  # = todo tasks
+todo n "Task" -d fri    # = todo new "Task" -d fri
+todo c 0 1 2            # = todo complete 0 1 2
+todo d "Old" -y         # = todo rm "Old" -y
 ```
 
 ## Credits
