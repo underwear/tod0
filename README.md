@@ -151,7 +151,7 @@ For reliable scripting, use stable task IDs instead of names or indices:
 
 ```bash
 # Get task ID from JSON
-todo tasks --json | jq '.[0].id'
+todo tasks --json | jq '.tasks[0].id'
 
 # Show IDs inline (without full JSON)
 todo tasks --show-id
@@ -161,6 +161,12 @@ todo complete --id "AAMkADU3..." -l Tasks
 todo update --id "AAMkADU3..." --title "New title"
 todo rm --id "AAMkADU3..." -l Tasks -y
 ```
+
+### Tips for Scripts and Agents
+
+- **Duplicate names**: If multiple tasks share the same name, the first match is used. For reliability, use `--id` with the task ID from `--json` output.
+- **Indexes are unstable**: Task indexes (`[0]`, `[1]`, ...) can change between calls as tasks are added, completed, or reordered. Use `--id` for stable references.
+- **JSON output contract**: With `--json`, stdout contains only valid JSON. Errors go to stderr. Exit code 0 means success.
 
 ### Aliases
 
