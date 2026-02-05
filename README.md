@@ -249,6 +249,12 @@ todo c 0 1 2            # = todo complete 0 1 2
 todo d "Old" -y         # = todo rm "Old" -y
 ```
 
+## Claude Code
+
+A skill for [Claude Code](https://claude.ai/download) is available:
+
+**[todo skill](https://github.com/underwear/claude-code-underwear-skills/blob/main/skills/todo/SKILL.md)** — enables Claude to manage your Microsoft To-Do tasks directly.
+
 ## Credits
 
 Forked from [kiblee/tod0](https://github.com/kiblee/tod0) with a redesigned CLI.
