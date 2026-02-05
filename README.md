@@ -21,23 +21,6 @@ $ todo complete 0
 Completed task 'Buy groceries' in 'Tasks'
 ```
 
-## Table of Contents
-
-- [Install](#install)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-  - [Tasks](#tasks)
-  - [Subtasks (Steps)](#subtasks-steps)
-  - [Lists](#lists)
-  - [Date & Time Formats](#date--time-formats)
-  - [Recurrence Patterns](#recurrence-patterns)
-- [Scripting & Automation](#scripting--automation)
-  - [JSON Output](#json-output)
-  - [Task Identification](#task-identification)
-  - [Exit Codes](#exit-codes)
-  - [Tips for Scripts and Agents](#tips-for-scripts-and-agents)
-- [Aliases](#aliases)
-
 ## Install
 
 **Requirements:** Python 3.10+
