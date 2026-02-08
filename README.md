@@ -114,6 +114,20 @@ todo clear-note "Task"                # Remove note (alias: cn)
 
 Notes are text content attached to a task. Use `todo show "Task"` to see the note along with other task details.
 
+### My Day
+
+```bash
+todo my-day                           # List My Day tasks (across all lists)
+todo my-day-add "Task"                # Add task to My Day
+todo my-day-add 0                     # Add by index
+todo my-day-add --id "AAMk..." -l Tasks  # Add by ID
+todo my-day-remove "Task"             # Remove from My Day
+todo my-day-remove 0                  # Remove by index
+todo my-day-remove --id "AAMk..." -l Tasks  # Remove by ID
+```
+
+My Day is a cross-list view of tasks you want to focus on today. Tasks are marked via a linked resource, so My Day state is stored server-side and persists across sessions. Note: this is a CLI-specific feature using linked resources -- it does not sync with the native "My Day" view in the Microsoft To Do app (the Graph API does not expose that property).
+
 ### Lists
 
 ```bash

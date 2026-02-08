@@ -1,3 +1,9 @@
+v1.4.0, 2026-02-08
+  - Added My Day support: my-day, my-day-add, my-day-remove commands
+  - My Day is a cross-list view of tasks to focus on today
+  - Uses linked resources for server-side persistence
+  - Supports --json, --id, --index, and -l flags
+
 v1.2.0, 2026-02-05
   - Added -N/--note flag to 'new' command for creating tasks with notes
 

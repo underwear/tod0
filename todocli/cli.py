@@ -959,6 +959,119 @@ def clear_note(args):
         print(result["message"])
 
 
+def my_day(args):
+    """List all tasks in My Day."""
+    date_fmt = getattr(args, "date_format", "eu")
+    use_json = getattr(args, "json", False)
+
+    my_day_tasks = wrapper.get_my_day_tasks()
+
+    if use_json:
+        output = {
+            "tasks": [],
+        }
+        for list_id, list_name, task in my_day_tasks:
+            task_dict = task.to_dict()
+            task_dict["list_id"] = list_id
+            task_dict["list_name"] = list_name
+            output["tasks"].append(task_dict)
+        print(json.dumps(output, indent=2))
+    else:
+        if not my_day_tasks:
+            print("No tasks in My Day")
+            return
+        for i, (list_id, list_name, task) in enumerate(my_day_tasks):
+            line = f"[{i}]\t{task.title}"
+            if _get_enum_value(task.importance) == "high":
+                line += " !"
+            if task.due_datetime is not None:
+                line += f" (due: {format_date(task.due_datetime, date_fmt)})"
+            line += f"  [{list_name}]"
+            print(line)
+
+
+def my_day_add(args):
+    """Add a task to My Day."""
+    task_id = getattr(args, "task_id", None)
+    task_index = getattr(args, "task_index", None)
+    use_json = getattr(args, "json", False)
+    list_name = getattr(args, "list", None) or "Tasks"
+
+    if task_id:
+        returned_id, title, already_existed = wrapper.add_to_my_day(
+            list_name=list_name, task_id=task_id
+        )
+    elif task_index is not None:
+        returned_id, title, already_existed = wrapper.add_to_my_day(
+            list_name=list_name, task_name=task_index
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        returned_id, title, already_existed = wrapper.add_to_my_day(
+            list_name=task_list, task_name=try_parse_as_int(name)
+        )
+        list_name = task_list
+
+    if already_existed:
+        msg = f"Task '{title}' is already in My Day"
+    else:
+        msg = f"Added task '{title}' to My Day"
+
+    result = {
+        "action": "added_to_my_day" if not already_existed else "already_in_my_day",
+        "id": returned_id,
+        "title": title,
+        "list": list_name,
+        "message": msg,
+    }
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
+def my_day_remove(args):
+    """Remove a task from My Day."""
+    task_id = getattr(args, "task_id", None)
+    task_index = getattr(args, "task_index", None)
+    use_json = getattr(args, "json", False)
+    list_name = getattr(args, "list", None) or "Tasks"
+
+    if task_id:
+        returned_id, title, was_in_my_day = wrapper.remove_from_my_day(
+            list_name=list_name, task_id=task_id
+        )
+    elif task_index is not None:
+        returned_id, title, was_in_my_day = wrapper.remove_from_my_day(
+            list_name=list_name, task_name=task_index
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        returned_id, title, was_in_my_day = wrapper.remove_from_my_day(
+            list_name=task_list, task_name=try_parse_as_int(name)
+        )
+        list_name = task_list
+
+    if was_in_my_day:
+        msg = f"Removed task '{title}' from My Day"
+    else:
+        msg = f"Task '{title}' was not in My Day"
+
+    result = {
+        "action": "removed_from_my_day" if was_in_my_day else "not_in_my_day",
+        "id": returned_id,
+        "title": title,
+        "list": list_name,
+        "message": msg,
+    }
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
 def show(args):
     """Display all details of a task."""
     task_id = getattr(args, "task_id", None)
@@ -1434,6 +1547,36 @@ def setup_parser():
         _add_id_flag(subparser)
         _add_json_flag(subparser)
         subparser.set_defaults(func=clear_note)
+
+    # 'my-day' command - list My Day tasks
+    subparser = subparsers.add_parser(
+        "my-day", help="List tasks in My Day (across all lists)"
+    )
+    _add_json_flag(subparser)
+    _add_date_format_flag(subparser)
+    subparser.set_defaults(func=my_day)
+
+    # 'my-day-add' command - add task to My Day
+    subparser = subparsers.add_parser(
+        "my-day-add", help="Add a task to My Day"
+    )
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    _add_index_flag(subparser)
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=my_day_add)
+
+    # 'my-day-remove' command - remove task from My Day
+    subparser = subparsers.add_parser(
+        "my-day-remove", help="Remove a task from My Day"
+    )
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    _add_index_flag(subparser)
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=my_day_remove)
 
     return parser
 
