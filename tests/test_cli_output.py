@@ -46,6 +46,8 @@ def _make_args(**kwargs):
         args.task_index = None
     if "step_id" not in kwargs:
         args.step_id = None
+    if "link" not in kwargs:
+        args.link = None
     return args
 
 

@@ -174,11 +174,22 @@ def new(args):
             )
             step_ids.append(step_id)
 
+    link_url = getattr(args, "link", None)
+    link_id = None
+    if link_url:
+        link_id, _, _ = wrapper.create_linked_resource(
+            web_url=link_url,
+            list_name=task_list,
+            task_id=task_id,
+        )
+
     msg = f"Created task '{name}' in '{task_list}'"
     if steps:
         msg += f" with {len(steps)} step(s)"
     if note_content:
         msg += " with note"
+    if link_url:
+        msg += " with link"
 
     result = {
         "action": "created",
@@ -191,6 +202,9 @@ def new(args):
         result["step_ids"] = step_ids
     if note_content:
         result["note"] = note_content
+    if link_id:
+        result["link_id"] = link_id
+        result["link_url"] = link_url
 
     _output_result(args, result)
 
@@ -959,117 +973,142 @@ def clear_note(args):
         print(result["message"])
 
 
-def my_day(args):
-    """List all tasks in My Day."""
-    date_fmt = getattr(args, "date_format", "eu")
+def link(args):
+    """Add a link (linked resource) to a task."""
+    task_id = getattr(args, "task_id", None)
+    use_json = getattr(args, "json", False)
+    web_url = args.url
+    app_name = getattr(args, "app", None)
+    display_name = getattr(args, "title", None)
+
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        link_id, returned_id, title = wrapper.create_linked_resource(
+            web_url=web_url,
+            list_name=list_name,
+            task_id=task_id,
+            application_name=app_name,
+            display_name=display_name,
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        link_id, returned_id, title = wrapper.create_linked_resource(
+            web_url=web_url,
+            list_name=task_list,
+            task_name=try_parse_as_int(name),
+            application_name=app_name,
+            display_name=display_name,
+        )
+        list_name = task_list
+
+    result = {
+        "action": "linked",
+        "link_id": link_id,
+        "task_id": returned_id,
+        "title": title,
+        "url": web_url,
+        "list": list_name,
+        "message": f"Added link to task '{title}'",
+    }
+    if app_name:
+        result["app"] = app_name
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
+def unlink(args):
+    """Remove link(s) from a task."""
+    task_id = getattr(args, "task_id", None)
+    use_json = getattr(args, "json", False)
+    link_index = getattr(args, "link_index", None)
+
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_id, title, count = wrapper.delete_linked_resource(
+            list_name=list_name,
+            task_id=task_id,
+            link_index=link_index,
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        returned_id, title, count = wrapper.delete_linked_resource(
+            list_name=task_list,
+            task_name=try_parse_as_int(name),
+            link_index=link_index,
+        )
+        list_name = task_list
+
+    if count == 0:
+        msg = f"No links to remove from task '{title}'"
+    elif count == 1:
+        msg = f"Removed 1 link from task '{title}'"
+    else:
+        msg = f"Removed {count} links from task '{title}'"
+
+    result = {
+        "action": "unlinked",
+        "task_id": returned_id,
+        "title": title,
+        "count": count,
+        "list": list_name,
+        "message": msg,
+    }
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
+def links(args):
+    """List all links on a task."""
+    task_id = getattr(args, "task_id", None)
     use_json = getattr(args, "json", False)
 
-    my_day_tasks = wrapper.get_my_day_tasks()
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        resources = wrapper.get_linked_resources(
+            list_name=list_name, task_id=task_id
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        resources = wrapper.get_linked_resources(
+            list_name=task_list,
+            task_name=try_parse_as_int(name),
+        )
+        list_name = task_list
 
     if use_json:
         output = {
-            "tasks": [],
+            "list": list_name,
+            "links": [
+                {
+                    "id": r.get("id", ""),
+                    "url": r.get("webUrl", ""),
+                    "app": r.get("applicationName", ""),
+                    "display_name": r.get("displayName", ""),
+                }
+                for r in resources
+            ],
         }
-        for list_id, list_name, task in my_day_tasks:
-            task_dict = task.to_dict()
-            task_dict["list_id"] = list_id
-            task_dict["list_name"] = list_name
-            output["tasks"].append(task_dict)
         print(json.dumps(output, indent=2))
     else:
-        if not my_day_tasks:
-            print("No tasks in My Day")
+        if not resources:
+            print("No links")
             return
-        for i, (list_id, list_name, task) in enumerate(my_day_tasks):
-            line = f"[{i}]\t{task.title}"
-            if _get_enum_value(task.importance) == "high":
-                line += " !"
-            if task.due_datetime is not None:
-                line += f" (due: {format_date(task.due_datetime, date_fmt)})"
-            line += f"  [{list_name}]"
-            print(line)
-
-
-def my_day_add(args):
-    """Add a task to My Day."""
-    task_id = getattr(args, "task_id", None)
-    task_index = getattr(args, "task_index", None)
-    use_json = getattr(args, "json", False)
-    list_name = getattr(args, "list", None) or "Tasks"
-
-    if task_id:
-        returned_id, title, already_existed = wrapper.add_to_my_day(
-            list_name=list_name, task_id=task_id
-        )
-    elif task_index is not None:
-        returned_id, title, already_existed = wrapper.add_to_my_day(
-            list_name=list_name, task_name=task_index
-        )
-    else:
-        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
-        returned_id, title, already_existed = wrapper.add_to_my_day(
-            list_name=task_list, task_name=try_parse_as_int(name)
-        )
-        list_name = task_list
-
-    if already_existed:
-        msg = f"Task '{title}' is already in My Day"
-    else:
-        msg = f"Added task '{title}' to My Day"
-
-    result = {
-        "action": "added_to_my_day" if not already_existed else "already_in_my_day",
-        "id": returned_id,
-        "title": title,
-        "list": list_name,
-        "message": msg,
-    }
-
-    if use_json:
-        print(json.dumps(result, indent=2))
-    else:
-        print(result["message"])
-
-
-def my_day_remove(args):
-    """Remove a task from My Day."""
-    task_id = getattr(args, "task_id", None)
-    task_index = getattr(args, "task_index", None)
-    use_json = getattr(args, "json", False)
-    list_name = getattr(args, "list", None) or "Tasks"
-
-    if task_id:
-        returned_id, title, was_in_my_day = wrapper.remove_from_my_day(
-            list_name=list_name, task_id=task_id
-        )
-    elif task_index is not None:
-        returned_id, title, was_in_my_day = wrapper.remove_from_my_day(
-            list_name=list_name, task_name=task_index
-        )
-    else:
-        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
-        returned_id, title, was_in_my_day = wrapper.remove_from_my_day(
-            list_name=task_list, task_name=try_parse_as_int(name)
-        )
-        list_name = task_list
-
-    if was_in_my_day:
-        msg = f"Removed task '{title}' from My Day"
-    else:
-        msg = f"Task '{title}' was not in My Day"
-
-    result = {
-        "action": "removed_from_my_day" if was_in_my_day else "not_in_my_day",
-        "id": returned_id,
-        "title": title,
-        "list": list_name,
-        "message": msg,
-    }
-
-    if use_json:
-        print(json.dumps(result, indent=2))
-    else:
-        print(result["message"])
+        for i, r in enumerate(resources):
+            app = r.get("applicationName", "")
+            url = r.get("webUrl", "")
+            display = r.get("displayName", "")
+            if app and display != url:
+                print(f"[{i}] {display} ({app}) - {url}")
+            elif app:
+                print(f"[{i}] {app} - {url}")
+            else:
+                print(f"[{i}] {url}")
 
 
 def show(args):
@@ -1093,10 +1132,27 @@ def show(args):
             list_name=task_list, task_name=try_parse_as_int(task_name)
         )
 
+    # Fetch linked resources
+    try:
+        task_links = wrapper.get_linked_resources(
+            list_name=task_list, task_id=task.id
+        )
+    except Exception:
+        task_links = []
+
     if getattr(args, "json", False):
         output = task.to_dict()
         output["list"] = task_list
         output["steps"] = [s.to_dict() for s in steps]
+        output["links"] = [
+            {
+                "id": r.get("id", ""),
+                "url": r.get("webUrl", ""),
+                "app": r.get("applicationName", ""),
+                "display_name": r.get("displayName", ""),
+            }
+            for r in task_links
+        ]
         print(json.dumps(output, indent=2))
     else:
         print(f"Title:      {task.title}")
@@ -1117,6 +1173,18 @@ def show(args):
             for i, step in enumerate(steps):
                 check = "x" if step.is_checked else " "
                 print(f"  [{i}] [{check}] {step.display_name}")
+        if task_links:
+            print("Links:")
+            for i, r in enumerate(task_links):
+                app = r.get("applicationName", "")
+                url = r.get("webUrl", "")
+                display = r.get("displayName", "")
+                if app and display != url:
+                    print(f"  [{i}] {display} ({app}) - {url}")
+                elif app:
+                    print(f"  [{i}] {app} - {url}")
+                else:
+                    print(f"  [{i}] {url}")
 
 
 def confirm_action(message, skip_confirm=False):
@@ -1324,6 +1392,12 @@ def setup_parser():
             "--note",
             help="Add a note to the task",
             metavar="TEXT",
+        )
+        subparser.add_argument(
+            "-L",
+            "--link",
+            help="Attach a link (URL) to the task at creation time",
+            metavar="URL",
         )
         _add_list_flag(subparser)
         _add_json_flag(subparser)
@@ -1548,35 +1622,48 @@ def setup_parser():
         _add_json_flag(subparser)
         subparser.set_defaults(func=clear_note)
 
-    # 'my-day' command - list My Day tasks
+    # 'link' command - add a link (linked resource) to a task
     subparser = subparsers.add_parser(
-        "my-day", help="List tasks in My Day (across all lists)"
+        "link", help="Add a link (deep link) to a task"
     )
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    subparser.add_argument("url", help="URL to link to the task")
+    subparser.add_argument(
+        "--app", help="Application name (e.g. Jira, GitHub, Slack). Defaults to URL domain."
+    )
+    subparser.add_argument(
+        "--title", help="Display name for the link. Defaults to URL."
+    )
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
     _add_json_flag(subparser)
-    _add_date_format_flag(subparser)
-    subparser.set_defaults(func=my_day)
+    subparser.set_defaults(func=link)
 
-    # 'my-day-add' command - add task to My Day
+    # 'unlink' command - remove link(s) from a task
     subparser = subparsers.add_parser(
-        "my-day-add", help="Add a task to My Day"
+        "unlink", help="Remove link(s) from a task"
+    )
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    subparser.add_argument(
+        "--index",
+        dest="link_index",
+        type=int,
+        help="Remove only the link at this index (from 'links' output). Omit to remove all.",
+    )
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=unlink)
+
+    # 'links' command - list all links on a task
+    subparser = subparsers.add_parser(
+        "links", help="List all links (deep links) on a task"
     )
     subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
     _add_list_flag(subparser)
     _add_id_flag(subparser)
-    _add_index_flag(subparser)
     _add_json_flag(subparser)
-    subparser.set_defaults(func=my_day_add)
-
-    # 'my-day-remove' command - remove task from My Day
-    subparser = subparsers.add_parser(
-        "my-day-remove", help="Remove a task from My Day"
-    )
-    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
-    _add_list_flag(subparser)
-    _add_id_flag(subparser)
-    _add_index_flag(subparser)
-    _add_json_flag(subparser)
-    subparser.set_defaults(func=my_day_remove)
+    subparser.set_defaults(func=links)
 
     return parser
 
@@ -1620,6 +1707,9 @@ def main():
                 error_occurred = True
             except wrapper.StepNotFoundByIndex as e:
                 _output_error("step_not_found", e.message)
+                error_occurred = True
+            except wrapper.LinkNotFoundByIndex as e:
+                _output_error("link_not_found", e.message)
                 error_occurred = True
             except TimeExpressionNotRecognized as e:
                 _output_error("invalid_time", e.message)

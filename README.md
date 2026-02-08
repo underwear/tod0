@@ -114,19 +114,33 @@ todo clear-note "Task"                # Remove note (alias: cn)
 
 Notes are text content attached to a task. Use `todo show "Task"` to see the note along with other task details.
 
-### My Day
+### Deep Links
 
 ```bash
-todo my-day                           # List My Day tasks (across all lists)
-todo my-day-add "Task"                # Add task to My Day
-todo my-day-add 0                     # Add by index
-todo my-day-add --id "AAMk..." -l Tasks  # Add by ID
-todo my-day-remove "Task"             # Remove from My Day
-todo my-day-remove 0                  # Remove by index
-todo my-day-remove --id "AAMk..." -l Tasks  # Remove by ID
+# Add a link to a task
+todo link "Fix bug" "https://jira.company.com/browse/ZD-123" --app Jira --title ZD-123
+todo link "Review PR" "https://github.com/org/repo/pull/42" --app GitHub
+todo link "Discuss with team" "https://app.slack.com/..." --app Slack
+
+# List links on a task
+todo links "Fix bug"
+
+# Remove all links from a task
+todo unlink "Fix bug"
+
+# Remove a specific link by index
+todo unlink "Fix bug" --index 0
+
+# Create a task with a link
+todo new "Fix bug" --link "https://jira.company.com/browse/ZD-123"
+
+# Use --id for automation
+todo link --id "AAMk..." -l Tasks "https://jira.com/ZD-123" --app Jira
+todo links --id "AAMk..." -l Tasks
+todo unlink --id "AAMk..." -l Tasks
 ```
 
-My Day is a cross-list view of tasks you want to focus on today. Tasks are marked via a linked resource, so My Day state is stored server-side and persists across sessions. Note: this is a CLI-specific feature using linked resources -- it does not sync with the native "My Day" view in the Microsoft To Do app (the Graph API does not expose that property).
+Deep links attach URLs to tasks using Microsoft To Do's linked resources API. In the To Do app, links appear as clickable "Open in {app}" buttons. Use this to connect tasks to Jira tickets, GitHub PRs, Slack threads, or any URL.
 
 ### Lists
 

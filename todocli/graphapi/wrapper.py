@@ -729,37 +729,50 @@ def clear_task_note(
     response.raise_for_status()
 
 
-# --- My Day functions ---
-
-MY_DAY_APP_NAME = "microsoft-todo-cli"
-MY_DAY_EXTERNAL_ID = "my-day"
-MY_DAY_DISPLAY_NAME = "My Day"
-MY_DAY_WEB_URL = "todocli://my-day"
+# --- Linked Resources (Deep Links) ---
 
 
-def _get_my_day_linked_resource(list_id: str, task_id: str):
-    """Check if a task has a My Day linked resource. Returns the resource or None."""
+class LinkNotFoundByIndex(Exception):
+    def __init__(self, link_index, task_name):
+        self.message = "Link with index '{}' could not be found on task '{}'".format(
+            link_index, task_name
+        )
+        super(LinkNotFoundByIndex, self).__init__(self.message)
+
+
+def get_linked_resources(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Get all linked resources for a task. Returns list of dicts."""
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/linkedResources"
     session = get_oauth_session()
     response = session.get(endpoint)
     if response.ok:
-        resources = json.loads(response.content.decode()).get("value", [])
-        for r in resources:
-            if (
-                r.get("applicationName") == MY_DAY_APP_NAME
-                and r.get("externalId") == MY_DAY_EXTERNAL_ID
-            ):
-                return r
-    return None
+        return json.loads(response.content.decode()).get("value", [])
+    response.raise_for_status()
 
 
-def add_to_my_day(
+def create_linked_resource(
+    web_url: str,
     list_name: str = None,
     task_name: Union[str, int] = None,
     list_id: str = None,
     task_id: str = None,
+    application_name: str = None,
+    display_name: str = None,
 ):
-    """Add a task to My Day by creating a linked resource. Returns (task_id, task_title)."""
+    """Create a linked resource on a task. Returns (link_id, task_id, task_title)."""
     _require_list(list_name, list_id)
     _require_task(task_name, task_id)
 
@@ -768,35 +781,53 @@ def add_to_my_day(
     if task_id is None:
         task_id = get_task_id_by_name(list_name, task_name)
 
-    # Check if already in My Day
-    existing = _get_my_day_linked_resource(list_id, task_id)
-    if existing:
-        # Already in My Day, get task title
-        task = get_task(list_id=list_id, task_id=task_id)
-        return task_id, task.title, True  # already_existed=True
+    # Default application_name from URL domain
+    if application_name is None:
+        try:
+            from urllib.parse import urlparse
+
+            domain = urlparse(web_url).hostname or ""
+            # Strip common prefixes
+            for prefix in ("www.", "app.", "api."):
+                if domain.startswith(prefix):
+                    domain = domain[len(prefix) :]
+            # Use first part of domain as app name
+            application_name = domain.split(".")[0].capitalize() if domain else "Link"
+        except Exception:
+            application_name = "Link"
+
+    if display_name is None:
+        display_name = web_url
 
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/linkedResources"
     request_body = {
-        "webUrl": MY_DAY_WEB_URL,
-        "applicationName": MY_DAY_APP_NAME,
-        "displayName": MY_DAY_DISPLAY_NAME,
-        "externalId": MY_DAY_EXTERNAL_ID,
+        "webUrl": web_url,
+        "applicationName": application_name,
+        "displayName": display_name,
+        "externalId": web_url,
     }
     session = get_oauth_session()
     response = session.post(endpoint, json=request_body)
     if response.ok:
+        data = json.loads(response.content.decode())
         task = get_task(list_id=list_id, task_id=task_id)
-        return task_id, task.title, False  # already_existed=False
+        return data.get("id", ""), task_id, task.title
     response.raise_for_status()
 
 
-def remove_from_my_day(
+def delete_linked_resource(
     list_name: str = None,
     task_name: Union[str, int] = None,
     list_id: str = None,
     task_id: str = None,
+    link_index: int = None,
 ):
-    """Remove a task from My Day by deleting its linked resource. Returns (task_id, task_title)."""
+    """Delete linked resource(s) from a task.
+
+    If link_index is provided, delete only that one.
+    If link_index is None, delete all linked resources.
+    Returns (task_id, task_title, count_deleted).
+    """
     _require_list(list_name, list_id)
     _require_task(task_name, task_id)
 
@@ -805,78 +836,25 @@ def remove_from_my_day(
     if task_id is None:
         task_id = get_task_id_by_name(list_name, task_name)
 
-    existing = _get_my_day_linked_resource(list_id, task_id)
     task = get_task(list_id=list_id, task_id=task_id)
-    if not existing:
-        return task_id, task.title, False  # was_in_my_day=False
+    resources = get_linked_resources(list_id=list_id, task_id=task_id)
 
-    lr_id = existing["id"]
-    endpoint = (
-        f"{BASE_URL}/{list_id}/tasks/{task_id}/linkedResources/{lr_id}"
-    )
+    if link_index is not None:
+        if link_index < 0 or link_index >= len(resources):
+            raise LinkNotFoundByIndex(link_index, task.title)
+        resources_to_delete = [resources[link_index]]
+    else:
+        resources_to_delete = resources
+
     session = get_oauth_session()
-    response = session.delete(endpoint)
-    if response.ok:
-        return task_id, task.title, True  # was_in_my_day=True
-    response.raise_for_status()
+    count = 0
+    for r in resources_to_delete:
+        lr_id = r["id"]
+        endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/linkedResources/{lr_id}"
+        response = session.delete(endpoint)
+        if response.ok:
+            count += 1
+        else:
+            response.raise_for_status()
 
-
-def get_my_day_tasks():
-    """Get all tasks marked as My Day across all lists.
-
-    Returns list of (list_id, list_name, task) tuples.
-    Uses batch API to check linked resources efficiently.
-    """
-    session = get_oauth_session()
-
-    # Get all lists
-    lists = get_lists()
-
-    my_day_tasks = []
-
-    for lst in lists:
-        list_id = lst.id
-        list_name = lst.display_name
-
-        # Get incomplete tasks from this list
-        tasks = get_tasks(list_id=list_id, include_completed=False)
-        if not tasks:
-            continue
-
-        # Batch check linked resources for all tasks
-        # We need to check each task's linked resources
-        for i in range(0, len(tasks), BATCH_MAX_REQUESTS):
-            chunk = tasks[i : i + BATCH_MAX_REQUESTS]
-            body = {
-                "requests": [
-                    {
-                        "id": task.id,
-                        "method": "GET",
-                        "url": f"{BASE_RELATE_URL}/{list_id}/tasks/{task.id}/linkedResources",
-                    }
-                    for task in chunk
-                ]
-            }
-            response = session.post(BATCH_URL, json=body)
-            if not response.ok:
-                response.raise_for_status()
-
-            batch_response = json.loads(response.content.decode())
-            # Build a set of task IDs that have My Day linked resource
-            my_day_task_ids = set()
-            for resp in batch_response.get("responses", []):
-                if resp.get("status") == 200:
-                    resources = resp.get("body", {}).get("value", [])
-                    for r in resources:
-                        if (
-                            r.get("applicationName") == MY_DAY_APP_NAME
-                            and r.get("externalId") == MY_DAY_EXTERNAL_ID
-                        ):
-                            my_day_task_ids.add(resp["id"])
-                            break
-
-            for task in chunk:
-                if task.id in my_day_task_ids:
-                    my_day_tasks.append((list_id, list_name, task))
-
-    return my_day_tasks
+    return task_id, task.title, count
